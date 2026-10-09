@@ -6,6 +6,16 @@
 
 按住遥控器语音键说话，松开结束。语音识别由输入法完成；Mi Remote Helper 负责传递音频和触发输入法快捷键。
 
+## 产品截图
+
+语音输入、收音增益与说话模式。
+
+![语音输入](docs/images/voice-input.zh-CN.png)
+
+可自定义的短按、双击与长按映射。
+
+![按键映射](docs/images/button-mapping.zh-CN.png)
+
 ## 功能
 
 - RC003 蓝牙连接、型号确认、ATVV 能力协商及断线重连。

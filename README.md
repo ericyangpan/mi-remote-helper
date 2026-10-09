@@ -6,6 +6,16 @@ A native macOS app that turns the microphone on a Xiaomi Bluetooth Remote 2 Pro 
 
 Hold the remote’s voice button to speak, then release it to finish. Speech recognition is handled by your input method; Mi Remote Helper delivers the audio and controls its shortcut.
 
+## Screenshots
+
+Voice input with microphone gain and speaking modes.
+
+![Voice input](docs/images/voice-input.en.png)
+
+Customizable short, double and long presses.
+
+![Button mappings](docs/images/button-mapping.en.png)
+
 ## Features
 
 - RC003 Bluetooth connection, model verification, ATVV negotiation and reconnection.
