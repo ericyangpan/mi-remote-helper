@@ -1,0 +1,156 @@
+{
+  "format": "mi-remote-helper.mapping",
+  "version": 2,
+  "name": "Global",
+  "scope": "global",
+  "shortPress": {
+    "power": {
+      "type": "preset",
+      "action": "disabled"
+    },
+    "up": {
+      "type": "preset",
+      "action": "arrowUp"
+    },
+    "left": {
+      "type": "preset",
+      "action": "arrowLeft"
+    },
+    "ok": {
+      "type": "preset",
+      "action": "returnKey"
+    },
+    "right": {
+      "type": "preset",
+      "action": "arrowRight"
+    },
+    "down": {
+      "type": "preset",
+      "action": "arrowDown"
+    },
+    "back": {
+      "type": "preset",
+      "action": "escape"
+    },
+    "volume_up": {
+      "type": "preset",
+      "action": "volumeUp"
+    },
+    "home": {
+      "type": "preset",
+      "action": "appSwitcher"
+    },
+    "volume_down": {
+      "type": "preset",
+      "action": "volumeDown"
+    },
+    "menu": {
+      "type": "preset",
+      "action": "contextMenu"
+    },
+    "tv": {
+      "type": "preset",
+      "action": "playPause"
+    }
+  },
+  "longPress": {
+    "power": {
+      "type": "preset",
+      "action": "disabled"
+    },
+    "up": {
+      "type": "preset",
+      "action": "pageUp"
+    },
+    "left": {
+      "type": "preset",
+      "action": "homeKey"
+    },
+    "ok": {
+      "type": "preset",
+      "action": "disabled"
+    },
+    "right": {
+      "type": "preset",
+      "action": "endKey"
+    },
+    "down": {
+      "type": "preset",
+      "action": "pageDown"
+    },
+    "back": {
+      "type": "preset",
+      "action": "clearText"
+    },
+    "volume_up": {
+      "type": "preset",
+      "action": "disabled"
+    },
+    "home": {
+      "type": "preset",
+      "action": "disabled"
+    },
+    "volume_down": {
+      "type": "preset",
+      "action": "disabled"
+    },
+    "menu": {
+      "type": "preset",
+      "action": "disabled"
+    },
+    "tv": {
+      "type": "preset",
+      "action": "volumeMute"
+    }
+  },
+  "doublePress": {
+    "power": {
+      "type": "preset",
+      "action": "disabled"
+    },
+    "up": {
+      "type": "preset",
+      "action": "disabled"
+    },
+    "left": {
+      "type": "preset",
+      "action": "disabled"
+    },
+    "ok": {
+      "type": "preset",
+      "action": "disabled"
+    },
+    "right": {
+      "type": "preset",
+      "action": "disabled"
+    },
+    "down": {
+      "type": "preset",
+      "action": "disabled"
+    },
+    "back": {
+      "type": "preset",
+      "action": "disabled"
+    },
+    "volume_up": {
+      "type": "preset",
+      "action": "disabled"
+    },
+    "home": {
+      "type": "preset",
+      "action": "disabled"
+    },
+    "volume_down": {
+      "type": "preset",
+      "action": "disabled"
+    },
+    "menu": {
+      "type": "preset",
+      "action": "disabled"
+    },
+    "tv": {
+      "type": "preset",
+      "action": "disabled"
+    }
+  }
+}

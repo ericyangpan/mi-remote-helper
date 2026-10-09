@@ -1,0 +1,19 @@
+{
+  "format": "mi-remote-helper.mapping",
+  "version": 2,
+  "name": "Codex",
+  "scope": "application",
+  "bundleIdentifier": "com.openai.codex",
+  "shortPress": {},
+  "longPress": {},
+  "doublePress": {
+    "ok": {
+      "type": "shortcut",
+      "chord": {
+        "keyCode": 36,
+        "keyLabel": "Return",
+        "modifiers": 1
+      }
+    }
+  }
+}

@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" fill="none">
+  <title>Mi Remote Helper</title>
+  <desc>A charcoal remote with a white microphone and sound waves on a warm orange rounded square.</desc>
+  <defs>
+    <linearGradient id="tile" x1="180" y1="80" x2="860" y2="960" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFB34D"/>
+      <stop offset=".46" stop-color="#FF793C"/>
+      <stop offset="1" stop-color="#EF482E"/>
+    </linearGradient>
+    <linearGradient id="remote" x1="358" y1="192" x2="614" y2="822" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#343D4A"/>
+      <stop offset="1" stop-color="#141D2A"/>
+    </linearGradient>
+    <linearGradient id="edge" x1="356" y1="180" x2="578" y2="844" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity=".32"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity=".04"/>
+    </linearGradient>
+    <filter id="remoteShadow" x="160" y="100" width="600" height="844" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="22" stdDeviation="22" flood-color="#612119" flood-opacity=".28"/>
+    </filter>
+  </defs>
+
+  <rect width="1024" height="1024" fill="url(#tile)"/>
+  <g transform="translate(-73.142857 -73.142857) scale(1.142857)">
+  <!-- Two generous arcs stay legible at Dock and Finder sizes. -->
+  <g stroke="#FFF9F0" stroke-width="30" stroke-linecap="round">
+    <path d="M689 337C728 380 728 444 689 487"/>
+    <path d="M750 278C821 353 821 471 750 546" opacity=".66"/>
+  </g>
+
+  <g transform="rotate(-13 472 512)">
+    <rect x="332" y="176" width="280" height="672" rx="140" fill="url(#remote)" filter="url(#remoteShadow)"/>
+    <rect x="335" y="179" width="274" height="666" rx="137" stroke="url(#edge)" stroke-width="6"/>
+
+    <!-- A microphone is the primary mark; the circular key makes it a remote. -->
+    <rect x="427" y="273" width="90" height="166" rx="45" fill="#FFF9F0"/>
+    <path d="M391 393V407C391 452 427 488 472 488C517 488 553 452 553 407V393M472 488V531M435 531H509"
+          stroke="#FFF9F0" stroke-width="25" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="472" cy="678" r="66" fill="#0D1521" stroke="#FFFFFF" stroke-opacity=".18" stroke-width="5"/>
+    <circle cx="472" cy="678" r="27" fill="#FF9B50"/>
+  </g>
+  </g>
+</svg>

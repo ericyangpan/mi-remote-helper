@@ -1,0 +1,8 @@
+// Public defaults: Apple Silicon, local ad-hoc signing, no developer account required.
+ARCHS = arm64
+CODE_SIGN_STYLE = Manual
+CODE_SIGN_IDENTITY = -
+DEVELOPMENT_TEAM =
+
+// Optional private override shared by the app and test targets.
+#include? "Signing.local.xcconfig"
