@@ -2,6 +2,8 @@
 
 **English** · [简体中文](README.zh-CN.md)
 
+[Website](https://mi-remote.yangpan.com)
+
 A native macOS app that turns the microphone on a Xiaomi Bluetooth Remote 2 Pro (RC003) into a virtual microphone for WeChat Input, with customizable remote buttons.
 
 Hold the remote’s voice button to speak, then release it to finish. Speech recognition is handled by your input method; Mi Remote Helper delivers the audio and controls its shortcut.

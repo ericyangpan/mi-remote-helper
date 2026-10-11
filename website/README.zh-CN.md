@@ -27,7 +27,7 @@ npx wrangler deploy --dry-run
 
 `src/content.mjs` 保存双语文案和下载版本。下载链接指向公开的 GitHub Release。构建读取 `../docs/images/` 中的应用截图、`../Design/` 中的应用图标，以及应用设计目录里的字体和原始许可证。生成的 WebP、字体和 HTML 放入已忽略的 `dist/`，不提交生成产物。
 
-`SITE_URL` 设置规范 HTTPS 域名，默认 `https://mi-remote.yangpan.com`。这是构建默认值，不代表已发布域名。可选的 `GA_MEASUREMENT_ID` 接入现有 GA4 ID；不设置时关闭统计。每次构建及部署均需设置所需变量：
+`SITE_URL` 设置规范 HTTPS 域名，默认 `https://mi-remote.yangpan.com`。这是 `wrangler.jsonc` 中配置的生产域名。可选的 `GA_MEASUREMENT_ID` 接入现有 GA4 ID；不设置时关闭统计。每次构建及部署均需设置所需变量：
 
 ```sh
 SITE_URL=https://mi-remote.yangpan.com npm run deploy
@@ -35,7 +35,7 @@ SITE_URL=https://mi-remote.yangpan.com npm run deploy
 SITE_URL=https://mi-remote.yangpan.com GA_MEASUREMENT_ID=G-YOURID npm run deploy
 ```
 
-`npm run deploy` 会将网站发布到所选 Cloudflare 账户，并可能更新已有的 `mi-remote-helper-website` Worker。先用 `npx wrangler login` 登录，Wrangler 在沙箱外运行。发布前确认目标账户，并将 `SITE_URL` 改为选定域名。发布后在 Cloudflare 绑定自定义域名。仓库未配置域名路由或账户标识。
+`npm run deploy` 会将网站发布到所选 Cloudflare 账户，并可能更新已有的 `mi-remote-helper-website` Worker。先用 `npx wrangler login` 登录，Wrangler 在沙箱外运行。发布前确认目标账户，并将 `SITE_URL` 改为选定域名。自定义域名已配置在 `wrangler.jsonc` 中，部署通过 Cloudflare 配置 DNS 和证书。仓库不保存账户标识。
 
 网站不需要动态处理函数或密钥。`_headers` 提供安全策略。HTML 包含规范链接、互相对应的语言链接和结构化数据，并生成 `robots.txt` 和 `sitemap.xml`。当前布局面向域名根路径；部署到子路径时需调整资源地址和语言路由。
 

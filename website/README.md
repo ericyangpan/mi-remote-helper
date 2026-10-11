@@ -27,7 +27,7 @@ The checker verifies local links, language metadata, image variants, font licens
 
 `src/content.mjs` contains both translations and the download version. Downloads point to the public GitHub Release. The build reads app screenshots from `../docs/images/`, the app icon from `../Design/`, and the bundled fonts and original licenses from the app's design directory. Generated WebP images, fonts and HTML go into ignored `dist/`; do not commit generated output.
 
-`SITE_URL` sets the canonical HTTPS origin; its default is `https://mi-remote.yangpan.com`. This is a build default, not a published domain. `GA_MEASUREMENT_ID` optionally enables Google Analytics using an existing GA4 ID. Analytics is disabled when omitted. Set these variables during each build, including deployment:
+`SITE_URL` sets the canonical HTTPS origin; its default is `https://mi-remote.yangpan.com`. This is the production domain configured in `wrangler.jsonc`. `GA_MEASUREMENT_ID` optionally enables Google Analytics using an existing GA4 ID. Analytics is disabled when omitted. Set these variables during each build, including deployment:
 
 ```sh
 SITE_URL=https://mi-remote.yangpan.com npm run deploy
@@ -35,7 +35,7 @@ SITE_URL=https://mi-remote.yangpan.com npm run deploy
 SITE_URL=https://mi-remote.yangpan.com GA_MEASUREMENT_ID=G-YOURID npm run deploy
 ```
 
-`npm run deploy` publishes the site to the selected Cloudflare account and may update an existing Worker named `mi-remote-helper-website`. Authenticate with `npx wrangler login` first. Run Wrangler outside the sandbox. Before publishing, verify the destination account and update `SITE_URL` to the chosen domain. Bind the custom domain in Cloudflare after publishing. No domain route or account identifier is committed.
+`npm run deploy` publishes the site to the selected Cloudflare account and may update an existing Worker named `mi-remote-helper-website`. Authenticate with `npx wrangler login` first. Run Wrangler outside the sandbox. Before publishing, verify the destination account and update `SITE_URL` to the chosen domain. The custom domain is configured in `wrangler.jsonc`; deployment provisions its DNS and certificate through Cloudflare. No account identifier is committed.
 
 The site requires no dynamic handler or secrets. `_headers` supplies the security policy. HTML includes canonical URLs, reciprocal language alternates and structured data; `robots.txt` and `sitemap.xml` are generated. This layout assumes a domain root; hosting under a path requires adapting asset URLs and language routes.
 

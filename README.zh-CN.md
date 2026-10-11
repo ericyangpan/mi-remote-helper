@@ -2,6 +2,8 @@
 
 [English](README.md) · **简体中文**
 
+[项目网站](https://mi-remote.yangpan.com/zh/)
+
 原生 macOS 应用，将小米蓝牙遥控器 2 Pro（RC003）的麦克风连接到微信输入法，并支持自定义遥控器按键。
 
 按住遥控器语音键说话，松开结束。语音识别由输入法完成；Mi Remote Helper 负责传递音频和触发输入法快捷键。
