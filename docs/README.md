@@ -8,6 +8,7 @@ English is the primary documentation language. `AGENTS.md` is maintained in Engl
 
 | Document | Purpose | Chinese translation |
 | --- | --- | --- |
+| [Product website](../website/README.md) | Bilingual homepage, local preview and Workers deployment | [Chinese](../website/README.zh-CN.md) |
 | [UI verification record](ui-verification.md) | Historical interface checks and limits | [Chinese](ui-verification.zh-CN.md) |
 | [Repository guidance](../AGENTS.md) | Coding-agent rules, behavior constraints and verification | English only |
 | [README](../README.md) | Setup, features, build and permissions | [Chinese](../README.zh-CN.md) |

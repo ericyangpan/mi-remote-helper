@@ -8,6 +8,7 @@
 
 | 文档 | 用途 | 英文版 |
 | --- | --- | --- |
+| [产品网站](../website/README.zh-CN.md) | 双语首页、本地预览与 Workers 部署 | [English](../website/README.md) |
 | [UI 验证记录](ui-verification.zh-CN.md) | 历史界面检查与边界 | [English](ui-verification.md) |
 | [仓库协作规范](../AGENTS.md) | 编码助手规则、行为约束与验证 | [English](../AGENTS.md) |
 | [README](../README.zh-CN.md) | 使用设置、功能、构建与权限 | [English](../README.md) |

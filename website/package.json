@@ -1,0 +1,19 @@
+{
+  "name": "mi-remote-helper-website",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "check": "node scripts/check.mjs",
+    "dev": "npm run build && wrangler dev --port 8787",
+    "deploy": "npm run build && npm run check && wrangler deploy"
+  },
+  "devDependencies": {
+    "sharp": "^0.35.5",
+    "wrangler": "^4.149.0"
+  }
+}
