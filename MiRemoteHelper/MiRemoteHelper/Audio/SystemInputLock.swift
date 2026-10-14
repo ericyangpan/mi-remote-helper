@@ -92,10 +92,10 @@ final class SystemInputLock: SystemInputRouting {
             if read() == previous { clearRestoration(); return }
         }
         guard retriesRemaining > 0 else {
-            restorationError = String(localized: "Unable to restore the previous audio input. Select an input in Sound settings.")
+            restorationError = String.appStatus("Unable to restore the previous audio input. Select an input in Sound settings.")
             return
         }
-        restorationError = String(localized: "Restoring the previous audio input…")
+        restorationError = String.appStatus("Restoring the previous audio input…")
         retriesRemaining -= 1
         let token = generation
         cancelRetry = scheduleRetry { [weak self] in

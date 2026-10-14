@@ -26,8 +26,8 @@ struct ButtonPressTracker {
     func deadline(for button: RemoteButton) -> TimeInterval? { pending[button]?.deadline }
 
     mutating func begin(_ button: RemoteButton, tap: ButtonBinding, hold: ButtonBinding,
-                        doubleTap: ButtonBinding = .preset(.disabled), at time: TimeInterval) -> UInt64? {
-        guard button != .microphone, presses[button] == nil else { return nil }
+                        doubleTap: ButtonBinding = .preset(.disabled), at time: TimeInterval, allowVoice: Bool = false) -> UInt64? {
+        guard (button != .microphone || allowVoice), presses[button] == nil else { return nil }
         let first = pending[button]
         let isSecond = first.map { time < $0.deadline } ?? false
         if isSecond { pending.removeValue(forKey: button) }

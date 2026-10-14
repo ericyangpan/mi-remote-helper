@@ -20,7 +20,7 @@ final class LoginItemSettings: ObservableObject {
             if enabled { try SMAppService.mainApp.register() }
             else { try SMAppService.mainApp.unregister() }
         } catch {
-            errorMessage = String(localized: "Unable to change launch at login: \(error.localizedDescription)")
+            errorMessage = String.appStatus("Unable to change launch at login: \(error.localizedDescription)")
         }
         // Always read the system result; a local preference cannot prove that
         // macOS registered, approved or removed the login item.

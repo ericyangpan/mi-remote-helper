@@ -24,7 +24,7 @@ Customizable short, double and long presses.
 - 16 kHz microphone audio routed to an installed BlackHole or MiRemoteV virtual device.
 - Left Control or Fn / Globe dictation control using your input method’s **tap to start, tap again to stop** mode.
 - Gain adjustment, whisper mode, input level, battery status and a short test tone.
-- Configurable short press, double press and long press for 12 buttons; the voice button stays dedicated to dictation.
+- Configurable short press, double press and long press for 12 buttons; the voice button supports customizable short/double presses and dedicated dictation on hold.
 - Global and per-app mappings, shortcut recording, and JSON import/export.
 - Optional system input locking while connected, so headphone changes do not replace the selected virtual microphone.
 - Menu bar operation, launch at login, English and Simplified Chinese interfaces.
@@ -45,21 +45,23 @@ Customizable short, double and long presses.
 4. In Settings, select the virtual microphone and choose Left Control or Fn / Globe to match WeChat Input. Configure that key in WeChat Input for **one tap to start, another tap to finish**, not hold-to-talk. Apply the settings.
 5. Connect the remote and grant Bluetooth permission. Allow Accessibility for shortcut injection; button mappings additionally require Input Monitoring. If macOS requests an app restart, quit and reopen it.
 6. Select the same virtual microphone in the input method if it offers a device selector. Otherwise it uses the system input.
-7. Focus a text field, hold the remote’s voice button, speak, and release. The app taps the configured key on press and taps it again after queued audio drains on release.
+7. Focus a text field, hold the remote’s voice button, speak, and release. The app taps the configured key after the hold threshold and taps it again after queued audio drains on release.
 
-The app does not automatically focus text fields. Fn and Left Control use the same toggle logic. Right Option and F20 remain available as native single-key mappings; their behavior depends on the receiving app.
+The voice button’s short press is customizable per app and defaults to No Action globally. Codex defaults to **Command + Option + I** (set **Focus main chat** to this shortcut in Codex); Grok Bot defaults to **Command + I**. A short press sends the shortcut on release, without starting dictation or inspecting text focus. Hold for 0.5 seconds to start voice input; a hold never sends the short-press action. Fn and Left Control use start/end taps; Right Option and F20 remain held-key shortcuts. Voice double press is customizable and defaults to no action; assigning it delays short press by 0.3 seconds. Enable button mapping to use its short-press actions.
 
 **Keep System Input** is on by default and configurable under Settings → Audio. While connected, it keeps the selected virtual microphone as the system input and corrects changes caused by headphones. It never changes playback output. On disconnect or exit, it restores the prior input only if the app still owns the selection and that device is available. If restoration fails while the app remains open, it retries up to three times at one-second intervals and shows a failure message if necessary; retries respect later external input selections. App termination only attempts synchronous restoration. Turning this option off leaves system input selection to you; interrupted audio routing still recovers automatically.
 
 Settings are applied explicitly and can be reverted before applying. Audio settings cannot change during capture. The test tone checks the virtual audio path without triggering dictation. The meter confirms received audio, not successful transcription.
 
-Whisper mode disables audio smoothing and uses a separately saved gain, initially +6 dB. It is off by default and does not change WeChat’s recognition model; recognition improvements are not guaranteed.
+Whisper mode disables audio smoothing and uses a separately saved gain, initially +3 dB. It is off by default and does not change WeChat’s recognition model; recognition improvements are not guaranteed.
+
+Settings provides independent Connect at Launch (on by default) and Launch at Login switches. Automatic connection requires a previously connected remote, a saved virtual microphone and existing Bluetooth permission. First-time setup remains manual. A sleeping remote may need a button press to wake. Manual disconnect stops retries for the current run; reopening the window does not restart the connection.
 
 ## Button mappings
 
-The remote has 13 buttons: Power, Voice, Up, Down, Left, Right, OK, Back, Home, Menu, Volume Up, Volume Down and TV. Voice is locked to dictation. All other buttons support independent short, double and long presses.
+The remote has 13 buttons: Power, Voice, Up, Down, Left, Right, OK, Back, Home, Menu, Volume Up, Volume Down and TV. Voice hold is locked to dictation; its short and double presses are customizable. All other buttons support independent short, double and long presses.
 
-Enable mappings in the Mappings page after granting Accessibility and Input Monitoring. Select an action in the relevant cell; choosing a custom shortcut opens the recorder. Changes save automatically. Application mappings override individual global actions only while the matching app is in front; unspecified actions inherit Global. The built-in Codex profile starts with inheritance. See [example Codex overrides](Examples/codex.mapping.json).
+Enable mappings in the Mappings page after granting Accessibility and Input Monitoring. Select an action in the relevant cell; choosing a custom shortcut opens the recorder. Changes save automatically. Application mappings override individual global actions only while the matching app is in front; unspecified actions inherit Global. The built-in Codex profile starts with inheritance. See [the Codex profile](Examples/codex.mapping.json).
 
 | Default action | Button / gesture |
 | --- | --- |
@@ -70,7 +72,7 @@ Enable mappings in the Mappings page after granting Accessibility and Input Moni
 | Page Up / Page Down | Up / Down, long press |
 | Clear all text in the focused supported text field | Back, long press |
 
-Long press triggers once after 0.5 seconds. Double press has a 0.3-second window; short press is delayed only when a double-press action is configured. Global double-press actions default to no action. Gestures are mutually exclusive, without automatic repeat. Home/End and paging behavior depends on the foreground app.
+Long press triggers once after 0.5 seconds. Double press has a 0.3-second window; short press is delayed only when a double-press action is configured. OK defaults to Return on short press, Shift+Return on long press and Command+Return on double press. Other double-press actions default to no action. Existing saved mappings are preserved. Gestures are mutually exclusive, without automatic repeat. Home/End and paging behavior depends on the foreground app.
 
 When the application switcher is open, Left/Right selects, OK/Home confirms, and Back/Power cancels. Voice cancels switching before starting dictation. The session also cancels on disconnect or after 30 seconds.
 
@@ -127,7 +129,7 @@ Validation on 2026-10-08: 109 unit tests passed (110 runs including parameterize
 
 RC003 voice capture through BlackHole and WeChat’s stop-on-release behavior have been checked on hardware. This does not establish compatibility with every firmware, input method or macOS release. Automated XCTest UI tests have not passed on the validation machine because runner initialization timed out. Full hardware regression, including sleep and reconnect, remains separate from unit tests.
 
-The main window is fixed at 1180 × 800 pt. Closing windows keeps the app in the menu bar. Login startup opens the app; the remote connection is started separately. RC003 firmware requires holding Voice to capture audio. Other models, multiple remotes and macros are unsupported.
+The main window is fixed at 1180 × 800 pt. Closing windows keeps the app in the menu bar. Reopening the closed main window from the Dock centers it on its previous display; if that display is unavailable, it uses the current display. Settings opens centered over the invoking window. Login startup opens the app; the remote connection is started separately. RC003 firmware requires holding Voice to capture audio. Other models, multiple remotes and macros are unsupported.
 
 A forced quit or crash cannot guarantee restoration of device key mappings. Disconnect and reconnect the remote if mappings remain suppressed. Avoid running competing remote-mapping tools.
 
@@ -135,7 +137,7 @@ A forced quit or crash cannot guarantee restoration of device key mappings. Disc
 
 The app artwork is in `Design/AppIcon.svg`, with its native Icon Composer document at `MiRemoteHelper/MiRemoteHelper/AppIcon.icon`. Menu bar SVGs are also in `Design/`. With Node.js and `sharp` installed or supplied through `NODE_PATH`, `node scripts/generate-app-icon.cjs` regenerates artwork. Normal Xcode builds use the committed assets and do not require Node.js.
 
-The interface follows the macOS app language, falling back to English. Translations live in `Localizable.xcstrings` and `InfoPlist.xcstrings`; device names remain unchanged.
+Settings → Language offers Follow System, 简体中文 and English. The default follows the macOS app language, falling back to English. Changes apply immediately without restarting or disconnecting the remote and affect only this app. Translations live in `Localizable.xcstrings` and `InfoPlist.xcstrings`; device names remain unchanged.
 
 
 See the [documentation index](docs/README.md) for technical references and translations.

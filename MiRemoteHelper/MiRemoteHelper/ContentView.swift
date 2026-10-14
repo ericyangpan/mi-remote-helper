@@ -1,16 +1,17 @@
 import SwiftUI
 
 struct ContentView: View {
+    @ObservedObject private var localization = AppLocalization.shared
     @ObservedObject var model: BridgeModel
     @ObservedObject private var settings: AppSettings
 
     init(model: BridgeModel) { self.model = model; settings = model.settings }
     private var busy: Bool { model.isSpeaking || model.isVoiceKeyHeld || model.testToneActive }
-    private var deviceName: String { model.outputs.first { $0.uid == (model.ready ? model.activeOutputUID : settings.outputUID) }?.name ?? String(localized: "Select a device") }
+    private var deviceName: String { model.outputs.first { $0.uid == (model.ready ? model.activeOutputUID : settings.outputUID) }?.name ?? String.appLocalized("Select a device") }
 
     var body: some View {
         WorkspacePage(controlsHeight: 32) {
-            Text(String(localized: "Voice Input")).font(AppTypography.heading)
+            Text(String.appLocalized("Voice Input")).font(AppTypography.heading)
                 .accessibilityIdentifier("mainHeading")
         } controls: {
             contextBar
@@ -18,12 +19,12 @@ struct ContentView: View {
             HStack(alignment: .top, spacing: WorkspaceLayout.columnSpacing) {
                 VStack(alignment: .leading, spacing: 30) {
                     HStack(alignment: .top, spacing: 28) {
-                        metric(String(localized: "Input Level"), value: model.peakDBFS.map { String(format: "%.0f", $0) } ?? "—", unit: "dBFS")
+                        metric(String.appLocalized("Input Level"), value: model.peakDBFS.map { String(format: "%.0f", $0) } ?? "—", unit: "dBFS")
                             .accessibilityIdentifier("inputLevel")
-                        metric(String(localized: "This Session"), value: String(format: "%02d:%02d", Int(model.audioSeconds) / 60, Int(model.audioSeconds) % 60), unit: nil)
+                        metric(String.appLocalized("This Session"), value: String(format: "%02d:%02d", Int(model.audioSeconds) / 60, Int(model.audioSeconds) % 60), unit: nil)
                     }
                     VStack(alignment: .leading, spacing: 20) {
-                        Text(String(localized: "Audio")).font(AppTypography.section)
+                        Text(String.appLocalized("Audio")).font(AppTypography.section)
                         AudioMeterView(level: model.level, overloaded: model.audioOverloaded)
                             .frame(height: 28)
                     }
@@ -36,10 +37,10 @@ struct ContentView: View {
                     .frame(width: WorkspaceLayout.photoWidth)
             }
         } footer: {
-            SettingsLink {
+            CenteredSettingsLink {
                 HStack(spacing: 12) {
                     Image(systemName: "slider.horizontal.3").frame(width: 20)
-                    Text(String(localized: "Audio Settings")).font(AppTypography.label)
+                    Text(String.appLocalized("Audio Settings")).font(AppTypography.label)
                     Spacer(minLength: 12)
                     Text("\(deviceName) · \((model.ready ? model.activeVoiceKey : settings.voiceKey).title)")
                         .font(AppTypography.compact).foregroundStyle(AppTheme.muted).lineLimit(1)
@@ -52,18 +53,18 @@ struct ContentView: View {
     private var contextBar: some View {
         HStack(spacing: 16) {
             if !model.ready || model.audioOverloaded || model.inputRestorationError != nil {
-                Label(model.audioOverloaded ? String(localized: "Input overloaded. Lower the microphone gain.") : model.statusMessage,
+                Label(model.audioOverloaded ? String.appLocalized("Input overloaded. Lower the microphone gain.") : model.statusMessage.appTranslated,
                       systemImage: model.audioOverloaded ? "exclamationmark.triangle" : "info.circle")
                     .font(AppTypography.compact).foregroundStyle(model.audioOverloaded ? AppTheme.coral : AppTheme.muted)
                     .fixedSize(horizontal: false, vertical: true).accessibilityIdentifier("bridgeStatus")
                 Spacer(minLength: 0)
-                if !model.ready { SettingsLink { Text(String(localized: "Set Up…")) } }
+                if !model.ready { CenteredSettingsLink { Text(String.appLocalized("Set Up…")) } }
             } else {
-                Text(String(localized: "Hold the voice button to speak")).foregroundStyle(AppTheme.muted)
+                Text(String.appLocalized("Hold the voice button to speak")).foregroundStyle(AppTheme.muted)
                 Spacer()
                 HStack(spacing: 7) {
                     Circle().fill(AppTheme.teal).frame(width: 6, height: 6)
-                    Text(model.isSpeaking ? String(localized: "Receiving Audio") : String(localized: "Ready"))
+                    Text(model.isSpeaking ? String.appLocalized("Receiving Audio") : String.appLocalized("Ready"))
                         .font(AppTypography.compact).foregroundStyle(AppTheme.teal)
                 }
             }
@@ -73,25 +74,25 @@ struct ContentView: View {
     private var voiceControls: some View {
         VStack(alignment: .leading, spacing: 20) {
             HStack(spacing: 20) {
-                Text(String(localized: "Speaking Mode")).font(AppTypography.section)
+                Text(String.appLocalized("Speaking Mode")).font(AppTypography.section)
                 Spacer(minLength: 0)
                 HStack(spacing: 2) {
-                    modeButton(String(localized: "Normal"), whisper: false)
-                    modeButton(String(localized: "Whisper"), whisper: true)
+                    modeButton(String.appLocalized("Normal"), whisper: false)
+                    modeButton(String.appLocalized("Whisper"), whisper: true)
                 }
                 .padding(3).frame(width: 200).background(AppTheme.paper, in: Capsule())
             }
             Rectangle().fill(AppTheme.teal.opacity(0.15)).frame(height: 1).accessibilityHidden(true)
             VStack(spacing: 12) {
                 HStack(alignment: .firstTextBaseline) {
-                    Text(settings.whisperMode ? String(localized: "Whisper Gain") : String(localized: "Microphone Gain"))
+                    Text(settings.whisperMode ? String.appLocalized("Whisper Gain") : String.appLocalized("Microphone Gain"))
                         .font(AppTypography.label)
                     Spacer()
                     Text(String(format: "%+.0f dB", settings.activeGainDB))
                         .font(AppTypography.gain).monospacedDigit().accessibilityIdentifier("gainValue")
                 }
                 Slider(value: Binding(get: { settings.activeGainDB }, set: { settings.activeGainDB = $0 }), in: -6...18, step: 1)
-                    .tint(AppTheme.teal).accessibilityLabel(String(localized: "Microphone Gain"))
+                    .tint(AppTheme.teal).accessibilityLabel(String.appLocalized("Microphone Gain"))
                 HStack { Text("−6"); Spacer(); Text("+18") }.font(AppTypography.caption).foregroundStyle(AppTheme.muted)
             }
         }
@@ -124,6 +125,7 @@ struct ContentView: View {
 }
 
 private struct AudioMeterView: View {
+    @ObservedObject private var localization = AppLocalization.shared
     let level: Double
     let overloaded: Bool
     var body: some View {
@@ -133,7 +135,7 @@ private struct AudioMeterView: View {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(String(localized: "Remote audio level"))
+        .accessibilityLabel(String.appLocalized("Remote audio level"))
         .accessibilityValue(Text("\(Int(level * 100))%"))
     }
 }

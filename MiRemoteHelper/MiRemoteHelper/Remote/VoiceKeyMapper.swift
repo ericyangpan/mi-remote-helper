@@ -50,7 +50,7 @@ final class VoiceKeyMapper {
     // Service clients depend on their event-system connection. Retaining only the
     // returned services is insufficient: keep their owner alive through every
     // property read, mapping write and restoration.
-    private let client = IOHIDEventSystemClientCreateSimpleClient(kCFAllocatorDefault)
+    private var client = IOHIDEventSystemClientCreateSimpleClient(kCFAllocatorDefault)
 
     private struct Snapshot {
         let original: UInt64?
@@ -65,7 +65,13 @@ final class VoiceKeyMapper {
         // Toggle shortcuts use separate start/end taps from ATVV. Disable
         // this remote's native F5 path so the input method cannot receive both.
         let destination = key.nativeMappingDestination
-        return apply(destinations: [KeyMapping.microphone: destination])
+        let applied = apply(destinations: [KeyMapping.microphone: destination])
+        if !applied {
+            // Rebuild after all service operations finish. A retained client can
+            // become stale across HID reconnects; snapshots still own restoration.
+            client = IOHIDEventSystemClientCreateSimpleClient(kCFAllocatorDefault)
+        }
+        return applied
     }
 
     func suppressOrdinaryButtons() -> Bool {
@@ -76,14 +82,14 @@ final class VoiceKeyMapper {
 
     private func apply(destinations: [UInt64: UInt64]) -> Bool {
         let services = targets()
-        guard !services.isEmpty else { error = String(localized: "Remote keyboard connection not found. Check that the remote is paired in Bluetooth settings."); return false }
+        guard !services.isEmpty else { error = String.appStatus("Remote keyboard connection not found. Check that the remote is paired in Bluetooth settings."); return false }
         for service in services {
-            guard let id = registryID(service) else { error = String(localized: "Unable to identify the remote keyboard connection."); return false }
+            guard let id = registryID(service) else { error = String.appStatus("Unable to identify the remote keyboard connection."); return false }
             let current = read(service)
             for (source, destination) in destinations {
                 let existing = current.first { $0.source == source }?.destination
                 if let saved = snapshots[id]?[source], existing != saved.installed {
-                    error = String(localized: "Another tool changed the voice key mapping. Close other remote helper apps first.")
+                    error = String.appStatus("Another tool changed the voice key mapping. Close other remote helper apps first.")
                     return false
                 }
                 if snapshots[id]?[source] == nil {
@@ -93,7 +99,7 @@ final class VoiceKeyMapper {
             let desired = KeyMapping.applying(destinations, to: current)
             guard KeyMapping.update(current: current, desired: desired,
                                     write: { self.write($0, to: service) }, read: { self.read(service) }) else {
-                error = String(localized: "Unable to configure the voice key. Allow Input Monitoring and try again.")
+                error = String.appStatus("Unable to configure the voice key. Allow Input Monitoring and try again.")
                 _ = restore()
                 return false
             }
@@ -117,7 +123,10 @@ final class VoiceKeyMapper {
                                  write: { self.write($0, to: service) }, read: { self.read(service) }) { snapshots.removeValue(forKey: id) }
             else { failed = true }
         }
-        if failed { error = String(localized: "Unable to restore the original voice key mapping. Disconnect and reconnect the remote.") }
+        if failed {
+            error = String.appStatus("Unable to restore the original voice key mapping. Disconnect and reconnect the remote.")
+            client = IOHIDEventSystemClientCreateSimpleClient(kCFAllocatorDefault)
+        }
         return !failed
     }
 

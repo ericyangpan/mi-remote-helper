@@ -39,7 +39,7 @@ struct ButtonMappingTests {
     @Test func allPhysicalButtonsHaveUniqueUsagesAndDefaults() {
         #expect(RemoteButton.allCases.count == 13)
         #expect(Set(RemoteButton.allCases.map(\.hidUsage)).count == 13)
-        #expect(RemoteButton.microphone.defaultBinding == .dictation)
+        #expect(RemoteButton.microphone.defaultBinding == .preset(.disabled))
         #expect(RemoteButton.power.defaultBinding == .preset(.disabled))
         #expect(RemoteButton.tv.defaultBinding == .preset(.playPause))
         #expect(RemoteButton.home.hidUsage == 0x4A)
@@ -102,14 +102,14 @@ struct ButtonMappingTests {
         model.onAvailabilityChange = { voiceRefreshes += 1 }
         model.setEnabled(true)
         #expect(voiceRefreshes == 1)
-        #expect(model.binding(for: .microphone) == .dictation)
+        #expect(model.binding(for: .microphone, press: .hold) == .dictation)
         let restored = ButtonMappingModel(defaults: defaults)
         #expect(restored.enabled)
         #expect(restored.binding(for: .tv) == .shortcut(chord))
-        #expect(restored.binding(for: .microphone) == .dictation)
+        #expect(restored.binding(for: .microphone, press: .hold) == .dictation)
         #expect(chord.displayName == "⇧⌘C")
         restored.reset()
-        #expect(restored.binding(for: .microphone) == .dictation)
+        #expect(restored.binding(for: .microphone, press: .hold) == .dictation)
         #expect(restored.binding(for: .tv) == .preset(.playPause))
         #expect(ButtonMappingModel(defaults: defaults).binding(for: .tv) == .preset(.playPause))
     }
@@ -132,20 +132,20 @@ struct ButtonMappingTests {
         #expect(!model.enabled)
         #expect(!KeyChord(keyCode: 8, keyLabel: "C", modifiers: .init(rawValue: 128)).isValid)
     }
-    @Test @MainActor func migratesVoiceOverridesAndRejectsNewOnes() throws {
+    @Test @MainActor func voiceTapIsEditableButHoldRemainsDictation() throws {
         let suite = "MiRemoteHelper.MappingTests.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
         defaults.set(try JSONEncoder().encode(["microphone": ButtonBinding.preset(.disabled), "tv": .preset(.playPause)]), forKey: "buttonMappings.v1")
         let model = ButtonMappingModel(defaults: defaults)
-        #expect(model.binding(for: .microphone) == .dictation)
+        #expect(model.binding(for: .microphone, press: .hold) == .dictation)
         #expect(model.binding(for: .tv) == .preset(.playPause))
         for binding in [ButtonBinding.preset(.disabled), .shortcut(KeyChord(keyCode: 8, keyLabel: "C", modifiers: [.command]))] {
             model.setBinding(binding, for: .microphone)
-            #expect(model.binding(for: .microphone) == .dictation)
+            #expect(model.binding(for: .microphone, press: .hold) == .dictation)
         }
         let saved = try JSONDecoder().decode([String: ButtonBinding].self, from: #require(defaults.data(forKey: "buttonMappings.v1")))
-        #expect(saved["microphone"] == nil)
+        #expect(saved["microphone"] == model.binding(for: .microphone))
     }
 
     @Test func directionalTapsAndHoldsDoNotOverlap() throws {

@@ -19,15 +19,15 @@ enum BluetoothBridgeState: Equatable {
 
     var displayText: String {
         switch self {
-        case .stopped: return String(localized: "Stopped")
-        case .initializingBluetooth: return String(localized: "Initializing Bluetooth")
-        case .awaitingBluetoothPermission: return String(localized: "Waiting for Bluetooth Permission")
+        case .stopped: return String.appStatus("Stopped")
+        case .initializingBluetooth: return String.appStatus("Initializing Bluetooth")
+        case .awaitingBluetoothPermission: return String.appStatus("Waiting for Bluetooth Permission")
         case .bluetoothUnavailable(let reason): return reason
-        case .scanning: return String(localized: "Searching for MI RC")
-        case .connecting: return String(localized: "Connecting to Remote")
-        case .discovering: return String(localized: "Initializing Voice Service")
-        case .ready(let name): return String(localized: "Connected to \(name)")
-        case .reconnecting: return String(localized: "Disconnected, Reconnecting")
+        case .scanning: return String.appStatus("Searching for MI RC")
+        case .connecting: return String.appStatus("Connecting to Remote")
+        case .discovering: return String.appStatus("Initializing Voice Service")
+        case .ready(let name): return String.appStatus("Connected to \(name)")
+        case .reconnecting: return String.appStatus("Disconnected, Reconnecting")
         case .failed(let reason): return reason
         }
     }
@@ -36,9 +36,9 @@ enum BluetoothBridgeState: Equatable {
         switch authorization {
         case .allowedAlways: return .initializingBluetooth
         case .notDetermined: return .awaitingBluetoothPermission
-        case .denied: return .bluetoothUnavailable(String(localized: "Bluetooth permission not granted"))
-        case .restricted: return .bluetoothUnavailable(String(localized: "Bluetooth access restricted by the system"))
-        @unknown default: return .bluetoothUnavailable(String(localized: "Bluetooth permission status unavailable"))
+        case .denied: return .bluetoothUnavailable(String.appStatus("Bluetooth permission not granted"))
+        case .restricted: return .bluetoothUnavailable(String.appStatus("Bluetooth access restricted by the system"))
+        @unknown default: return .bluetoothUnavailable(String.appStatus("Bluetooth permission status unavailable"))
         }
     }
 }
@@ -47,6 +47,7 @@ protocol XiaomiBluetoothBridgeDelegate: AnyObject {
     func bluetoothBridge(_ bridge: XiaomiBluetoothBridge, didChange state: BluetoothBridgeState)
     func bluetoothBridge(_ bridge: XiaomiBluetoothBridge, didDetectModelNumber modelNumber: String)
     func bluetoothBridge(_ bridge: XiaomiBluetoothBridge, didUpdateBatteryLevel level: RemoteBatteryLevel?)
+    func bluetoothBridge(_ bridge: XiaomiBluetoothBridge, didUpdateCharging charging: Bool?)
     func bluetoothBridgeDidStartVoice(_ bridge: XiaomiBluetoothBridge)
     func bluetoothBridgeDidStopVoice(_ bridge: XiaomiBluetoothBridge)
     func bluetoothBridge(
@@ -165,6 +166,13 @@ final class XiaomiBluetoothBridge: NSObject {
     private let modelNumberUUID = CBUUID(string: "2A24")
     private let batteryServiceUUID = CBUUID(string: "180F")
     private let batteryLevelUUID = CBUUID(string: "2A19")
+    private let batteryStatusUUID = CBUUID(string: "2BED")
+    private var batteryCharging: Bool? {
+        didSet {
+            guard oldValue != batteryCharging else { return }
+            delegate?.bluetoothBridge(self, didUpdateCharging: batteryCharging)
+        }
+    }
     private var batteryLevel: RemoteBatteryLevel? {
         didSet {
             guard oldValue != batteryLevel else { return }
@@ -178,6 +186,7 @@ final class XiaomiBluetoothBridge: NSObject {
             switch state {
             case .stopped, .reconnecting, .failed, .bluetoothUnavailable:
                 batteryLevel = nil
+                batteryCharging = nil
             default: break
             }
             delegate?.bluetoothBridge(self, didChange: state)
@@ -331,6 +340,7 @@ final class XiaomiBluetoothBridge: NSObject {
 
     private func resetPeripheral() {
         batteryLevel = nil
+        batteryCharging = nil
         peripheral?.delegate = nil
         peripheral = nil
         peripheralDelegateProxy = nil
@@ -377,7 +387,7 @@ final class XiaomiBluetoothBridge: NSObject {
                   self.lifecycle == .discovering(generation) ||
                     self.lifecycle == .awaitingCapabilities(generation)
             else { return }
-            self.failInitialization(String(localized: "ATVV initialization timed out"))
+            self.failInitialization(String.appStatus("ATVV initialization timed out"))
         }
         initializationTimeoutWorkItem = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 8, execute: work)
@@ -509,7 +519,7 @@ final class XiaomiBluetoothBridge: NSObject {
                 return
             }
             guard let parsed = ATVVCapabilities.parse(data) else {
-                failInitialization(String(localized: "The remote returned an invalid ATVV capability response"))
+                failInitialization(String.appStatus("The remote returned an invalid ATVV capability response"))
                 return
             }
             capabilities = parsed
@@ -517,7 +527,7 @@ final class XiaomiBluetoothBridge: NSObject {
                 "ATVV CAPS version=\(parsed.version) codec=\(parsed.selectedCodec) frame=\(parsed.frameSize)"
             )
             if !ATVVProtocol.supportsAudio(sampleRate: parsed.sampleRate) {
-                rejectUnsupportedAudio(String(localized: "The remote does not support the required 16 kHz audio codec"))
+                rejectUnsupportedAudio(String.appStatus("The remote does not support the required 16 kHz audio codec"))
                 return
             }
             capabilitiesConfirmed = true
@@ -572,7 +582,7 @@ final class XiaomiBluetoothBridge: NSObject {
                 )
             }
             guard ATVVProtocol.supportsAudio(sampleRate: capabilities.sampleRate) else {
-                rejectUnsupportedAudio(String(localized: "The remote switched to an unsupported 8 kHz audio codec"))
+                rejectUnsupportedAudio(String.appStatus("The remote switched to an unsupported 8 kHz audio codec"))
                 return
             }
             sessionID = bytes.count >= 4 ? bytes[3] : 0
@@ -686,20 +696,20 @@ extension XiaomiBluetoothBridge: CBCentralManagerDelegate {
         case .poweredOff:
             resetPeripheral()
             lifecycle = .scanning(generation)
-            state = .bluetoothUnavailable(String(localized: "Bluetooth is off"))
+            state = .bluetoothUnavailable(String.appStatus("Bluetooth is off"))
         case .unauthorized:
             resetSession()
-            state = .bluetoothUnavailable(String(localized: "Bluetooth permission not granted"))
+            state = .bluetoothUnavailable(String.appStatus("Bluetooth permission not granted"))
         case .unsupported:
-            state = .bluetoothUnavailable(String(localized: "This Mac does not support Bluetooth Low Energy"))
+            state = .bluetoothUnavailable(String.appStatus("This Mac does not support Bluetooth Low Energy"))
         case .resetting:
             resetPeripheral()
             lifecycle = .scanning(generation)
-            state = .bluetoothUnavailable(String(localized: "Bluetooth is resetting"))
+            state = .bluetoothUnavailable(String.appStatus("Bluetooth is resetting"))
         case .unknown:
             state = .initialState(authorization: CBManager.authorization)
         @unknown default:
-            state = .bluetoothUnavailable(String(localized: "Bluetooth status unavailable"))
+            state = .bluetoothUnavailable(String.appStatus("Bluetooth status unavailable"))
         }
     }
 
@@ -803,22 +813,22 @@ extension XiaomiBluetoothBridge {
               lifecycle.acceptsInitializationCallback(generation: generation)
         else { return }
         if let error {
-            state = .failed(String(localized: "Unable to discover the voice service: \(error.localizedDescription)"))
+            state = .failed(String.appStatus("Unable to discover the voice service: \(error.localizedDescription)"))
             scheduleReconnect(discardCachedIdentity: true)
             return
         }
         guard let deviceInformationService = peripheral.services?.first(
             where: { $0.uuid == deviceInformationServiceUUID }
         ) else {
-            failInitialization(String(localized: "The remote did not provide verifiable model information"))
+            failInitialization(String.appStatus("The remote did not provide verifiable model information"))
             return
         }
         peripheral.discoverCharacteristics([modelNumberUUID], for: deviceInformationService)
         if let batteryService = peripheral.services?.first(where: { $0.uuid == batteryServiceUUID }) {
-            peripheral.discoverCharacteristics([batteryLevelUUID], for: batteryService)
+            peripheral.discoverCharacteristics([batteryLevelUUID, batteryStatusUUID], for: batteryService)
         }
         guard let service = peripheral.services?.first(where: { $0.uuid == serviceUUID }) else {
-            state = .failed(String(localized: "The remote does not provide an ATVV voice service"))
+            state = .failed(String.appStatus("The remote does not provide an ATVV voice service"))
             scheduleReconnect(discardCachedIdentity: true)
             return
         }
@@ -839,25 +849,26 @@ extension XiaomiBluetoothBridge {
               currentGeneration() == generation
         else { return }
         if service.uuid == batteryServiceUUID {
-            guard lifecycle.acceptsNotificationUpdate(generation: generation), error == nil,
-                  let characteristic = service.characteristics?.first(where: { $0.uuid == batteryLevelUUID })
-            else { return }
-            if characteristic.properties.contains(.read) { peripheral.readValue(for: characteristic) }
-            if characteristic.properties.contains(.notify) || characteristic.properties.contains(.indicate) {
-                peripheral.setNotifyValue(true, for: characteristic)
+            guard lifecycle.acceptsNotificationUpdate(generation: generation), error == nil else { return }
+            for characteristic in service.characteristics ?? []
+                where characteristic.uuid == batteryLevelUUID || characteristic.uuid == batteryStatusUUID {
+                if characteristic.properties.contains(.read) { peripheral.readValue(for: characteristic) }
+                if characteristic.properties.contains(.notify) || characteristic.properties.contains(.indicate) {
+                    peripheral.setNotifyValue(true, for: characteristic)
+                }
             }
             return
         }
         if service.uuid == deviceInformationServiceUUID {
             guard lifecycle.acceptsModelDiscovery(generation: generation) else { return }
             if let error {
-                failInitialization(String(localized: "Unable to read the remote model: \(error.localizedDescription)"))
+                failInitialization(String.appStatus("Unable to read the remote model: \(error.localizedDescription)"))
                 return
             }
             guard let characteristic = service.characteristics?.first(
                 where: { $0.uuid == modelNumberUUID }
             ) else {
-                failInitialization(String(localized: "The remote did not provide a model number"))
+                failInitialization(String.appStatus("The remote did not provide a model number"))
                 return
             }
             modelNumberCharacteristic = characteristic
@@ -866,7 +877,7 @@ extension XiaomiBluetoothBridge {
         }
         guard lifecycle.acceptsInitializationCallback(generation: generation) else { return }
         if let error {
-            state = .failed(String(localized: "Unable to discover voice channels: \(error.localizedDescription)"))
+            state = .failed(String.appStatus("Unable to discover voice channels: \(error.localizedDescription)"))
             scheduleReconnect(discardCachedIdentity: true)
             return
         }
@@ -888,7 +899,7 @@ extension XiaomiBluetoothBridge {
               audioCharacteristic != nil,
               controlCharacteristic != nil
         else {
-            state = .failed(String(localized: "ATVV channels are incomplete"))
+            state = .failed(String.appStatus("ATVV channels are incomplete"))
             scheduleReconnect(discardCachedIdentity: true)
             return
         }
@@ -907,9 +918,9 @@ extension XiaomiBluetoothBridge {
               lifecycle.acceptsNotificationUpdate(generation: generation)
         else { return }
         // Battery notifications are optional and must never fail the voice link.
-        if characteristic.uuid == batteryLevelUUID { return }
+        if characteristic.uuid == batteryLevelUUID || characteristic.uuid == batteryStatusUUID { return }
         if let error {
-            state = .failed(String(localized: "Unable to subscribe to voice channels: \(error.localizedDescription)"))
+            state = .failed(String.appStatus("Unable to subscribe to voice channels: \(error.localizedDescription)"))
             scheduleReconnect(discardCachedIdentity: true)
             return
         }
@@ -918,7 +929,7 @@ extension XiaomiBluetoothBridge {
         }
         guard characteristic.isNotifying else {
             subscribedUUIDs.remove(characteristic.uuid)
-            failInitialization(String(localized: "ATVV notifications are not active"))
+            failInitialization(String.appStatus("ATVV notifications are not active"))
             return
         }
         subscribedUUIDs.insert(characteristic.uuid)
@@ -935,6 +946,15 @@ extension XiaomiBluetoothBridge {
               isCurrent(peripheral),
               currentGeneration() == generation
         else { return }
+        if characteristic.uuid == batteryStatusUUID {
+            guard lifecycle.acceptsNotificationUpdate(generation: generation) else { return }
+            let status = error == nil ? characteristic.value.flatMap(RemoteBatteryStatus.init(data:)) : nil
+            batteryCharging = status?.isCharging
+            if let percentage = status?.percentage {
+                batteryLevel = RemoteBatteryLevel(data: Data([UInt8(percentage)]))
+            }
+            return
+        }
         if characteristic.uuid == batteryLevelUUID {
             guard lifecycle.acceptsNotificationUpdate(generation: generation) else { return }
             batteryLevel = error == nil ? characteristic.value.flatMap(RemoteBatteryLevel.init(data:)) : nil
@@ -946,22 +966,22 @@ extension XiaomiBluetoothBridge {
                 return
             }
             if let error {
-                failInitialization(String(localized: "Unable to read the remote model: \(error.localizedDescription)"))
+                failInitialization(String.appStatus("Unable to read the remote model: \(error.localizedDescription)"))
                 return
             }
             guard let data = characteristic.value else {
-                failInitialization(String(localized: "The remote model number is empty"))
+                failInitialization(String.appStatus("The remote model number is empty"))
                 return
             }
             let modelNumber = String(data: data, encoding: .utf8)?
                 .trimmingCharacters(in: .controlCharacters.union(.whitespacesAndNewlines))
             guard let modelNumber, !modelNumber.isEmpty else {
-                failInitialization(String(localized: "The remote model number is unreadable"))
+                failInitialization(String.appStatus("The remote model number is unreadable"))
                 return
             }
             guard XiaomiRemoteVariant.detected(fromModelNumber: modelNumber) != nil else {
                 AppLogger.shared.write("BLE MODEL unsupported=\(modelNumber)")
-                failInitialization(String(localized: "Remote model \(modelNumber) is not supported"))
+                failInitialization(String.appStatus("Remote model \(modelNumber) is not supported"))
                 return
             }
             guard modelConfirmation.accept(modelNumber) != nil else {

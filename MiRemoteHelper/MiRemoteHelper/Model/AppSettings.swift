@@ -4,6 +4,20 @@ import OSLog
 
 final class AppSettings: ObservableObject {
     private let defaults: UserDefaults
+    private let localization: AppLocalization?
+    @Published var appLanguage: AppLanguage {
+        didSet {
+            guard oldValue != appLanguage else { return }
+            defaults.set(appLanguage.rawValue, forKey: "appLanguage")
+            localization?.language = appLanguage
+            if let code = appLanguage.languageCode {
+                defaults.set([code], forKey: "AppleLanguages")
+            } else {
+                defaults.removeObject(forKey: "AppleLanguages")
+            }
+        }
+    }
+    @Published var connectAtLaunch: Bool { didSet { defaults.set(connectAtLaunch, forKey: "connectAtLaunch") } }
     @Published var outputUID: String { didSet { defaults.set(outputUID, forKey: "outputUID") } }
     @Published var keepSystemInput: Bool { didSet { defaults.set(keepSystemInput, forKey: "keepSystemInput") } }
     @Published var voiceKey: VoiceKey { didSet { defaults.set(voiceKey.rawValue, forKey: "voiceKey") } }
@@ -19,14 +33,38 @@ final class AppSettings: ObservableObject {
         set { defaults.set(newValue?.uuidString, forKey: "peripheralIdentifier") }
     }
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard, localization: AppLocalization? = nil) {
         self.defaults = defaults
+        self.localization = localization
+        let language = defaults.string(forKey: "appLanguage").flatMap(AppLanguage.init(rawValue:)) ?? .system
+        appLanguage = language
+        localization?.language = language
+        connectAtLaunch = defaults.object(forKey: "connectAtLaunch") == nil ? true : defaults.bool(forKey: "connectAtLaunch")
         outputUID = defaults.string(forKey: "outputUID") ?? ""
         keepSystemInput = defaults.object(forKey: "keepSystemInput") == nil ? true : defaults.bool(forKey: "keepSystemInput")
         voiceKey = defaults.string(forKey: "voiceKey").flatMap(VoiceKey.init(rawValue:)) ?? .leftControl
         gainDB = defaults.double(forKey: "gainDB")
         whisperMode = defaults.bool(forKey: "whisperMode")
-        whisperGainDB = defaults.object(forKey: "whisperGainDB") == nil ? 6 : defaults.double(forKey: "whisperGainDB")
+        whisperGainDB = defaults.object(forKey: "whisperGainDB") == nil ? 3 : defaults.double(forKey: "whisperGainDB")
+    }
+}
+
+enum AppLanguage: String, CaseIterable, Identifiable {
+    case system, simplifiedChinese, english
+    var id: Self { self }
+    var languageCode: String? {
+        switch self {
+        case .system: return nil
+        case .simplifiedChinese: return "zh-Hans"
+        case .english: return "en"
+        }
+    }
+    var title: String {
+        switch self {
+        case .system: return String.appLocalized("Follow System")
+        case .simplifiedChinese: return "简体中文"
+        case .english: return "English"
+        }
     }
 }
 
@@ -37,9 +75,9 @@ enum VoiceKey: String, CaseIterable, Identifiable {
     var nativeMappingDestination: UInt64 { usesToggle ? 0 : hidUsage }
     var title: String {
         switch self {
-        case .leftControl: return String(localized: "Left Control (WeChat toggle)")
-        case .fn: return String(localized: "Fn / Globe (WeChat toggle)")
-        case .rightOption: return String(localized: "Right Option")
+        case .leftControl: return String.appLocalized("Left Control (WeChat toggle)")
+        case .fn: return String.appLocalized("Fn / Globe (WeChat toggle)")
+        case .rightOption: return String.appLocalized("Right Option")
         case .f20: return "F20"
         }
     }

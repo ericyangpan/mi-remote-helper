@@ -1,6 +1,6 @@
 {
   "format": "mi-remote-helper.mapping",
-  "version": 2,
+  "version": 4,
   "name": "Global",
   "scope": "global",
   "shortPress": {
@@ -51,6 +51,10 @@
     "tv": {
       "type": "preset",
       "action": "playPause"
+    },
+    "microphone": {
+      "type": "preset",
+      "action": "disabled"
     }
   },
   "longPress": {
@@ -67,8 +71,12 @@
       "action": "homeKey"
     },
     "ok": {
-      "type": "preset",
-      "action": "disabled"
+      "type": "shortcut",
+      "chord": {
+        "keyCode": 36,
+        "keyLabel": "Return",
+        "modifiers": 8
+      }
     },
     "right": {
       "type": "preset",
@@ -117,8 +125,12 @@
       "action": "disabled"
     },
     "ok": {
-      "type": "preset",
-      "action": "disabled"
+      "type": "shortcut",
+      "chord": {
+        "keyCode": 36,
+        "keyLabel": "Return",
+        "modifiers": 1
+      }
     },
     "right": {
       "type": "preset",
@@ -149,6 +161,10 @@
       "action": "disabled"
     },
     "tv": {
+      "type": "preset",
+      "action": "disabled"
+    },
+    "microphone": {
       "type": "preset",
       "action": "disabled"
     }

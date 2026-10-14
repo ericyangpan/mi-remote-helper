@@ -52,7 +52,7 @@ final class RemoteButtonReader: RemoteButtonReading {
         if result != kIOReturnSuccess {
             AppLogger.shared.write("HID manager open failed: \(result)")
             stop()
-            onActive?(false, String(localized: "Unable to read the remote. Check Input Monitoring permission and reconnect."))
+            onActive?(false, String.appStatus("Unable to read the remote. Check Input Monitoring permission and reconnect."))
         } else if device == nil { onActive?(false, nil) }
     }
 
@@ -77,7 +77,7 @@ final class RemoteButtonReader: RemoteButtonReading {
             guard IOHIDDeviceOpen(device, 0) == kIOReturnSuccess, nativeKeys.suppressOrdinaryButtons() else {
                 IOHIDDeviceClose(device, 0)
                 restorationPending = !nativeKeys.restore()
-                onActive?(false, nativeKeys.error ?? String(localized: "Unable to take control of the remote’s buttons. Close other remapping apps, then turn mapping off and on."))
+                onActive?(false, nativeKeys.error ?? String.appStatus("Unable to take control of the remote’s buttons. Close other remapping apps, then turn mapping off and on."))
                 return
             }
         }

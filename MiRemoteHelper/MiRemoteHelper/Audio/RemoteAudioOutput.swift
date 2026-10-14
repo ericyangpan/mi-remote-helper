@@ -34,16 +34,16 @@ final class RemoteAudioOutput {
     func configure(uid: String) -> Bool {
         stop()
         guard let device = CoreAudioDeviceCatalog.loopbackDevices().first(where: { $0.uid == uid }) else {
-            error = String(localized: "Select an installed BlackHole 2ch or MiRemoteV 2ch device.")
+            error = String.appStatus("Select an installed BlackHole 2ch or MiRemoteV 2ch device.")
             return false
         }
         let engine = AVAudioEngine()
         let player = AVAudioPlayerNode()
         engine.attach(player)
-        guard let unit = engine.outputNode.audioUnit else { error = String(localized: "Unable to open audio output."); return false }
+        guard let unit = engine.outputNode.audioUnit else { error = String.appStatus("Unable to open audio output."); return false }
         var id = device.id
         let result = AudioUnitSetProperty(unit, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0, &id, UInt32(MemoryLayout.size(ofValue: id)))
-        guard result == noErr else { error = String(localized: "Unable to connect to the virtual microphone (\(result))."); return false }
+        guard result == noErr else { error = String.appStatus("Unable to connect to the virtual microphone (\(result))."); return false }
         engine.connect(player, to: engine.mainMixerNode, format: format)
         do {
             engine.prepare()
@@ -56,7 +56,7 @@ final class RemoteAudioOutput {
             error = nil
             return true
         } catch {
-            self.error = String(localized: "Unable to start the virtual microphone: \(error.localizedDescription)")
+            self.error = String.appStatus("Unable to start the virtual microphone: \(error.localizedDescription)")
             engine.stop()
             return false
         }
@@ -68,7 +68,7 @@ final class RemoteAudioOutput {
         guard queuedFrames + samples.count <= 16_000,
               let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(samples.count)),
               let channel = buffer.floatChannelData?[0] else {
-            error = String(localized: "Audio output is backing up. Reconnect the virtual microphone.")
+            error = String.appStatus("Audio output is backing up. Reconnect the virtual microphone.")
             return false
         }
         for index in samples.indices { channel[index] = Float(samples[index]) / 32_768 }

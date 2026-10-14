@@ -50,6 +50,24 @@ struct MappingProfileTests {
         }
     }
 
+    @Test func voiceTapProfilesMigrateOnceAndPreserveUserOverrides() throws {
+        try withModel { model, defaults in
+            let id = MappingDefinition.codex.id
+            let custom = ButtonBinding.shortcut(KeyChord(keyCode: 8, keyLabel: "C", modifiers: .command))
+            #expect(model.binding(for: .microphone, profileID: id) == MappingDefinition.codex.shortPress["microphone"])
+            #expect(model.binding(for: .microphone) == .preset(.disabled))
+            #expect(model.setBinding(custom, for: .microphone, profileID: id))
+            #expect(!model.setBinding(custom, for: .microphone, press: .hold, profileID: id))
+            #expect(model.setBinding(custom, for: .microphone, press: .doubleTap, profileID: id))
+            let restored = ButtonMappingModel(defaults: defaults)
+            #expect(restored.binding(for: .microphone, profileID: id) == custom)
+            restored.inheritGlobal(.microphone, press: .tap, profileID: id)
+            #expect(ButtonMappingModel(defaults: defaults).binding(for: .microphone, profileID: id) == .preset(.disabled))
+            let exported = try model.exportDefinition(profileID: id)
+            #expect(try MappingDefinitionCodec.decode(MappingDefinitionCodec.encode(exported)).shortPress["microphone"] == custom)
+        }
+    }
+
     @Test func globalAndAppExportsRoundTripWithoutMixingScopes() throws {
         try withModel { model, _ in
             let id = MappingDefinition.codex.id
@@ -61,8 +79,8 @@ struct MappingProfileTests {
             }
             let global = try model.exportDefinition(profileID: "global")
             let app = try model.exportDefinition(profileID: id)
-            #expect(global.shortPress.count == 12 && global.longPress.count == 12)
-            #expect(app.shortPress.isEmpty && app.longPress.count == 1)
+            #expect(global.shortPress.count == 13 && global.longPress.count == 12)
+            #expect(app.shortPress == MappingDefinition.codex.shortPress && app.longPress.count == 1)
             model.reset(profileID: id)
             #expect(model.binding(for: .tv, press: .hold, profileID: id) == .preset(.volumeMute))
             try model.importDefinition(app)
@@ -79,7 +97,7 @@ struct MappingProfileTests {
             let before = model.globalDefinition
             let applications = model.applicationProfiles
             var invalid = MappingDefinition.codex
-            invalid.shortPress["microphone"] = .preset(.disabled)
+            invalid.longPress["microphone"] = .preset(.disabled)
             #expect(throws: MappingDefinitionError.self) { try model.importDefinition(invalid) }
             invalid = .codex
             invalid.longPress["tv"] = .shortcut(KeyChord(keyCode: 999, keyLabel: "x", modifiers: []))
@@ -106,7 +124,8 @@ struct MappingProfileTests {
             #expect(model.binding(for: .ok) == original)
             model.canEdit = { true }
             #expect(!model.setBinding(custom, for: .ok, profileID: "missing-app"))
-            #expect(!model.setBinding(custom, for: .microphone))
+            #expect(!model.setBinding(custom, for: .microphone, press: .hold))
+            #expect(model.setBinding(custom, for: .microphone))
             #expect(model.setBinding(custom, for: .ok))
             #expect(ButtonMappingModel(defaults: defaults).binding(for: .ok) == custom)
         }
@@ -132,15 +151,15 @@ struct MappingProfileTests {
         try withModel { model, defaults in
             let id = MappingDefinition.codex.id
             try model.addApplication(name: "Another display name", bundleIdentifier: "com.openai.codex")
-            #expect(model.applicationProfiles.count == 1)
+            #expect(model.applicationProfiles.count == 2)
             model.setApplicationEnabled(false, profileID: id)
             try model.importDefinition(.codex)
             #expect(model.selectedApplication?.enabled == false)
             model.removeApplication(id)
             #expect(model.selectedProfileID == "global")
-            #expect(ButtonMappingModel(defaults: defaults).applicationProfiles.isEmpty)
+            #expect(ButtonMappingModel(defaults: defaults).applicationProfiles.allSatisfy { $0.id != id })
             try model.addApplication(name: "Editor", bundleIdentifier: "com.example.editor")
-            #expect(model.applicationProfiles.count == 1)
+            #expect(model.applicationProfiles.count == 2)
         }
     }
 
@@ -148,12 +167,42 @@ struct MappingProfileTests {
         try withModel { model, _ in
             let codex = try #require(model.applicationProfiles.first?.definition)
             #expect(codex == .codex)
-            #expect(codex.shortPress.isEmpty && codex.longPress.isEmpty)
+            #expect(codex.shortPress.count == 1 && codex.longPress.isEmpty && codex.doublePress.isEmpty)
             for definition in [codex, model.globalDefinition] {
                 #expect(try MappingDefinitionCodec.decode(MappingDefinitionCodec.encode(definition)) == definition)
             }
-            #expect(model.globalDefinition.shortPress.count == 12)
+            #expect(model.globalDefinition.shortPress.count == 13)
             #expect(model.globalDefinition.longPress.count == 12)
+        }
+    }
+
+    @Test func newInstallUsesSameOKDefaultsGloballyAndInCodex() throws {
+        try withModel { model, _ in
+            let expected: [(ButtonPressKind, ButtonBinding)] = [
+                (.tap, .preset(.returnKey)),
+                (.hold, .shortcut(KeyChord(keyCode: 36, keyLabel: "Return", modifiers: .shift))),
+                (.doubleTap, .shortcut(KeyChord(keyCode: 36, keyLabel: "Return", modifiers: .command)))
+            ]
+            for (press, binding) in expected {
+                #expect(model.binding(for: .ok, press: press) == binding)
+                #expect(model.binding(for: .ok, press: press, profileID: MappingDefinition.codex.id) == binding)
+                #expect(model.inheritsGlobal(.ok, press: press, profileID: MappingDefinition.codex.id))
+                model.frontmostApplicationChanged(to: "com.openai.codex")
+                #expect(model.runtimeBinding(for: .ok, press: press) == binding)
+            }
+        }
+    }
+
+    @Test func initializationPreservesSavedGlobalAndCodexMappings() throws {
+        try withModel { model, defaults in
+            let id = MappingDefinition.codex.id
+            model.setBinding(.preset(.disabled), for: .ok, press: .hold)
+            model.setBinding(.preset(.disabled), for: .ok, press: .doubleTap)
+            model.setBinding(.preset(.escape), for: .ok, press: .hold, profileID: id)
+            let restored = ButtonMappingModel(defaults: defaults)
+            #expect(restored.binding(for: .ok, press: .hold).isDisabled)
+            #expect(restored.binding(for: .ok, press: .doubleTap).isDisabled)
+            #expect(restored.binding(for: .ok, press: .hold, profileID: id) == .preset(.escape))
         }
     }
 }

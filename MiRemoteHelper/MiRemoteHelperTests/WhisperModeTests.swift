@@ -12,7 +12,7 @@ struct WhisperModeTests {
         #expect(!settings.whisperMode)
         #expect(settings.activeGainDB == 3)
         settings.whisperMode = true
-        #expect(settings.activeGainDB == 6)
+        #expect(settings.activeGainDB == 3)
         settings.activeGainDB = 9
         settings.whisperMode = false
         #expect(settings.activeGainDB == 3)
@@ -39,7 +39,7 @@ struct WhisperModeTests {
         #expect(boosted == [.max, .min])
         for sample in boosted {
             var meter = AudioInputMeter()
-            meter.append([sample])
+            meter.append(Array(repeating: sample, count: 32))
             #expect(meter.overloaded)
             #expect(meter.displayLevel > 0.99)
             meter.clearPeak()
@@ -47,6 +47,32 @@ struct WhisperModeTests {
             #expect(meter.overloaded)
         }
         #expect(PCMPostprocessor.process([1234], gainDB: .nan, smoothing: false) == [1234])
+    }
+
+    @Test func isolatedSpikesDoNotTriggerOverload() {
+        var meter = AudioInputMeter()
+        for _ in 0..<10 {
+            meter.append([.max, .min])
+            meter.append(Array(repeating: 100, count: 1598))
+            meter.clearPeak()
+        }
+        #expect(!meter.overloaded)
+    }
+
+    @Test func repeatedClippingAcrossPacketsAndPeakResetsTriggersOverload() {
+        var meter = AudioInputMeter()
+        meter.append(Array(repeating: .max, count: 16))
+        meter.clearPeak()
+        meter.append(Array(repeating: 100, count: 100))
+        meter.append(Array(repeating: .min, count: 15))
+        #expect(!meter.overloaded)
+        meter.append([.min])
+        #expect(meter.overloaded)
+        meter.clearPeak()
+        meter.append(Array(repeating: 0, count: 1600))
+        #expect(meter.overloaded)
+        meter = AudioInputMeter()
+        #expect(!meter.overloaded)
     }
 
     @Test func meterAccumulatesPeaksBetweenUpdatesAndResetsWithoutFalseOverload() throws {

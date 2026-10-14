@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct MainWindowView: View {
+    @ObservedObject private var localization = AppLocalization.shared
     @ObservedObject var model: BridgeModel
     @SceneStorage("mainDestination") private var destination = "voice"
     @Environment(\.openWindow) private var openWindow
@@ -22,6 +23,8 @@ struct MainWindowView: View {
         .font(AppTypography.body)
         .foregroundStyle(AppTheme.ink).tint(AppTheme.teal)
         .frame(width: 1180, height: 800)
+        .background(MainWindowReader())
+        .onAppear { MainWindowPlacement.shared.openMainWindow = { openWindow(id: "main") } }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { model.refreshDevices(); model.refreshPermissions() }
         }
@@ -39,37 +42,37 @@ struct MainWindowView: View {
                 Text("Xiaomi 2 Pro").font(AppTypography.label)
                 HStack(spacing: 7) {
                     Circle().fill(model.isConnected ? AppTheme.teal : AppTheme.muted).frame(width: 6, height: 6)
-                    Text(model.isConnected ? String(localized: "Connected") : model.state.displayText)
+                    Text(model.isConnected ? String.appLocalized("Connected") : model.state.displayText)
                         .font(AppTypography.caption).foregroundStyle(AppTheme.muted)
                         .fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 4)
-                    RemoteBatteryView(level: model.batteryLevel, connected: model.isConnected).fixedSize()
+                    RemoteBatteryView(level: model.batteryLevel, charging: model.batteryCharging, connected: model.isConnected).fixedSize()
                 }
                 .frame(height: 30, alignment: .leading)
                 if !model.isRunning {
-                    Button(String(localized: "Connect Remote")) { model.start() }
+                    Button(String.appLocalized("Connect Remote")) { model.start() }
                         .buttonStyle(.borderedProminent).tint(AppTheme.coral)
                         .controlSize(.small).accessibilityIdentifier("connectButton")
                 } else {
                     HStack(spacing: 8) {
-                        Button(String(localized: "Disconnect")) { model.stop() }
+                        Button(String.appLocalized("Disconnect")) { model.stop() }
                             .accessibilityIdentifier("disconnectButton")
                         Button { model.reconnect() } label: { Image(systemName: "arrow.clockwise") }
-                            .help(String(localized: "Reconnect")).accessibilityLabel(String(localized: "Reconnect"))
+                            .help(String.appLocalized("Reconnect")).accessibilityLabel(String.appLocalized("Reconnect"))
                             .disabled(model.isSpeaking || model.isVoiceKeyHeld || model.testToneActive)
                     }.controlSize(.small)
                 }
             }
             .padding(.bottom, 28)
             SectionRule().padding(.bottom, 16)
-            navigation(String(localized: "Voice Input"), symbol: "mic", id: "voice")
-            navigation(String(localized: "Button Mapping"), symbol: "square.grid.2x2", id: "mapping")
+            navigation(String.appLocalized("Voice Input"), symbol: "mic", id: "voice")
+            navigation(String.appLocalized("Button Mapping"), symbol: "square.grid.2x2", id: "mapping")
             Spacer(minLength: 30)
-            SettingsLink {
-                sidebarLabel(String(localized: "Settings"), symbol: "slider.horizontal.3")
+            CenteredSettingsLink {
+                sidebarLabel(String.appLocalized("Settings"), symbol: "slider.horizontal.3")
             }.buttonStyle(.plain).accessibilityIdentifier("openSettings")
             Button { openWindow(id: "about") } label: {
-                sidebarLabel(String(localized: "About"), symbol: "info.circle")
+                sidebarLabel(String.appLocalized("About"), symbol: "info.circle")
             }.buttonStyle(.plain)
         }
         .padding(.horizontal, 24).padding(.top, 30).padding(.bottom, 22)

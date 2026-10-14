@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 
 struct ShortcutRecorderView: View {
+    @ObservedObject private var localization = AppLocalization.shared
     let button: RemoteButton
     let press: ButtonPressKind
     let onCancel: () -> Void
@@ -14,40 +15,40 @@ struct ShortcutRecorderView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            Text(String(localized: "\(button.displayName) · \(press.title)"))
+            Text(String.appLocalized("\(button.displayName) · \(press.title)"))
                 .font(AppTypography.section)
-            Text(pending == nil ? String(localized: "Press a key or key combination.") : String(localized: "Return to save · Esc to cancel"))
+            Text(pending == nil ? String.appLocalized("Press a key or key combination.") : String.appLocalized("Return to save · Esc to cancel"))
                 .font(AppTypography.body).foregroundStyle(AppTheme.muted)
 
             VStack(spacing: 10) {
                 if let pending {
                     Text(pending.displayName).font(AppTypography.recordedShortcut)
                         .lineLimit(1).minimumScaleFactor(0.6)
-                    Label(String(localized: "Shortcut captured"), systemImage: "checkmark.circle")
+                    Label(String.appLocalized("Shortcut captured"), systemImage: "checkmark.circle")
                         .font(AppTypography.caption).foregroundStyle(AppTheme.teal)
                 } else {
                     Image(systemName: "keyboard").font(.system(size: 26)).foregroundStyle(AppTheme.teal)
                         .accessibilityHidden(true)
-                    Text(String(localized: "Waiting for input")).font(AppTypography.body).foregroundStyle(AppTheme.muted)
+                    Text(String.appLocalized("Waiting for input")).font(AppTypography.body).foregroundStyle(AppTheme.muted)
                 }
             }
             .padding(.horizontal, 20).frame(maxWidth: .infinity).frame(height: 112)
             .background(AppTheme.mint, in: RoundedRectangle(cornerRadius: 14))
 
             if !errorText.isEmpty {
-                Text(errorText)
+                Text((errorText).appTranslated)
                     .font(AppTypography.caption)
                     .foregroundColor(.red)
             }
 
             HStack {
                 if pending != nil {
-                    Button(String(localized: "Record Again")) { startMonitoring() }
+                    Button(String.appLocalized("Record Again")) { startMonitoring() }
                 }
                 Spacer()
-                Button(String(localized: "Cancel"), action: onCancel)
+                Button(String.appLocalized("Cancel"), action: onCancel)
                     .keyboardShortcut(.cancelAction)
-                Button(String(localized: "Save")) {
+                Button(String.appLocalized("Save")) {
                     if let pending, !onRecord(pending) { errorText = MappingDefinitionError.busy.localizedDescription }
                 }
                     .keyboardShortcut(.defaultAction)
@@ -82,7 +83,7 @@ struct ShortcutRecorderView: View {
                 return nil
             }
             guard let chord = KeyChord.from(event: event) else {
-                errorText = String(localized: "Choose a standard key or function key.")
+                errorText = String.appStatus("Choose a standard key or function key.")
                 return nil
             }
             errorText = ""

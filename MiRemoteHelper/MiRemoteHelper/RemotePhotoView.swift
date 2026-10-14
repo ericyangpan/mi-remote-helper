@@ -3,6 +3,7 @@ import SwiftUI
 /// Hotspots use the original product photo's pixel coordinates, so the image and
 /// outlines stay registered at every display scale. The bundled photo is unmodified.
 struct RemotePhotoView: View {
+    @ObservedObject private var localization = AppLocalization.shared
     let pressed: Set<RemoteButton>
     var shortPressed: Set<RemoteButton> = []
     var longPressed: Set<RemoteButton> = []
@@ -14,11 +15,11 @@ struct RemotePhotoView: View {
     private var pressedNames: String {
         RemoteButton.allCases.filter { highlighted.contains($0) }.map { button in
             doublePressed.contains(button)
-                ? String(localized: "Double Press: \(button.displayName)")
+                ? String.appLocalized("Double Press: \(button.displayName)")
                 : longPressed.contains(button)
-                ? String(localized: "Long Press: \(button.displayName)")
+                ? String.appLocalized("Long Press: \(button.displayName)")
                 : shortPressed.contains(button)
-                ? String(localized: "Short Press: \(button.displayName)")
+                ? String.appLocalized("Short Press: \(button.displayName)")
                 : button.displayName
         }.joined(separator: " · ")
     }
@@ -80,8 +81,8 @@ struct RemotePhotoView: View {
         .aspectRatio(RemotePhotoOutline.crop.width / RemotePhotoOutline.crop.height, contentMode: .fit)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(String(localized: "Remote button activity"))
-        .accessibilityValue(highlighted.isEmpty ? String(localized: "No buttons pressed") : pressedNames)
+        .accessibilityLabel(String.appLocalized("Remote button activity"))
+        .accessibilityValue(highlighted.isEmpty ? String.appLocalized("No buttons pressed") : pressedNames)
         .accessibilityIdentifier("remoteButtonActivity")
     }
 

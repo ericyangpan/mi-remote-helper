@@ -55,19 +55,19 @@ enum RemoteButton: String, CaseIterable, Codable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .microphone: return String(localized: "Voice")
-        case .power: return String(localized: "Power")
-        case .up: return String(localized: "Up")
-        case .left: return String(localized: "Left")
-        case .ok: return String(localized: "OK")
-        case .right: return String(localized: "Right")
-        case .down: return String(localized: "Down")
-        case .back: return String(localized: "Back")
-        case .volumeUp: return String(localized: "Volume Up")
-        case .home: return String(localized: "Home")
-        case .volumeDown: return String(localized: "Volume Down")
-        case .menu: return String(localized: "Menu")
-        case .tv: return String(localized: "TV")
+        case .microphone: return String.appLocalized("Voice")
+        case .power: return String.appLocalized("Power")
+        case .up: return String.appLocalized("Up")
+        case .left: return String.appLocalized("Left")
+        case .ok: return String.appLocalized("OK")
+        case .right: return String.appLocalized("Right")
+        case .down: return String.appLocalized("Down")
+        case .back: return String.appLocalized("Back")
+        case .volumeUp: return String.appLocalized("Volume Up")
+        case .home: return String.appLocalized("Home")
+        case .volumeDown: return String.appLocalized("Volume Down")
+        case .menu: return String.appLocalized("Menu")
+        case .tv: return String.appLocalized("TV")
         }
     }
 
@@ -128,29 +128,66 @@ enum ButtonAction: String, CaseIterable, Codable, Identifiable {
         }
     }
 
-    var displayName: String {
+    /// Standard keyboard labels stay recognizable beside localized actions.
+    var keyLabel: String? {
         switch self {
-        case .disabled: return String(localized: "No Action")
-        case .escape: return "Escape"
+        case .escape: return "Esc"
         case .returnKey: return "Return"
-        case .arrowUp: return String(localized: "Arrow Up")
-        case .arrowDown: return String(localized: "Arrow Down")
-        case .arrowLeft: return String(localized: "Arrow Left")
-        case .arrowRight: return String(localized: "Arrow Right")
         case .homeKey: return "Home"
         case .endKey: return "End"
         case .pageUp: return "Page Up"
         case .pageDown: return "Page Down"
-        case .deleteBackward: return String(localized: "Delete (Backspace)")
-        case .clearText: return String(localized: "Clear All Text")
-        case .showDesktop: return String(localized: "Show Desktop")
-        case .contextMenu: return String(localized: "Context Menu (Right Click)")
-        case .appSwitcher: return String(localized: "Switch App")
-        case .mouseRightClick: return String(localized: "Right Click")
-        case .volumeUp: return String(localized: "Volume Up")
-        case .volumeDown: return String(localized: "Volume Down")
-        case .volumeMute: return String(localized: "Mute")
-        case .playPause: return String(localized: "Play / Pause")
+        case .deleteBackward: return "Delete"
+        default: return nil
+        }
+    }
+
+    private var searchAliases: [String] {
+        switch self {
+        case .escape: return ["Esc", "Escape"]
+        case .returnKey: return ["Return", "Enter"]
+        case .homeKey: return ["Home"]
+        case .endKey: return ["End"]
+        case .pageUp: return ["Page Up", "PageUp", "PgUp"]
+        case .pageDown: return ["Page Down", "PageDown", "PgDown", "PgDn"]
+        case .deleteBackward: return ["Delete", "Backspace"]
+        case .arrowUp: return ["Arrow Up"]
+        case .arrowDown: return ["Arrow Down"]
+        case .arrowLeft: return ["Arrow Left"]
+        case .arrowRight: return ["Arrow Right"]
+        default: return []
+        }
+    }
+
+    func matchesSearch(_ query: String) -> Bool {
+        let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        return query.isEmpty || displayName.localizedStandardContains(query)
+            || searchAliases.contains { $0.localizedStandardContains(query) }
+    }
+
+    var displayName: String {
+        switch self {
+        case .disabled: return String.appLocalized("No Action")
+        case .escape: return String.appLocalized("Escape")
+        case .returnKey: return String.appLocalized("Return")
+        case .arrowUp: return String.appLocalized("Arrow Up")
+        case .arrowDown: return String.appLocalized("Arrow Down")
+        case .arrowLeft: return String.appLocalized("Arrow Left")
+        case .arrowRight: return String.appLocalized("Arrow Right")
+        case .homeKey: return String.appLocalized("Keyboard Home")
+        case .endKey: return String.appLocalized("Keyboard End")
+        case .pageUp: return String.appLocalized("Page Up")
+        case .pageDown: return String.appLocalized("Page Down")
+        case .deleteBackward: return String.appLocalized("Delete (Backspace)")
+        case .clearText: return String.appLocalized("Clear All Text")
+        case .showDesktop: return String.appLocalized("Show Desktop")
+        case .contextMenu: return String.appLocalized("Context Menu (Right Click)")
+        case .appSwitcher: return String.appLocalized("Switch App")
+        case .mouseRightClick: return String.appLocalized("Right Click")
+        case .volumeUp: return String.appLocalized("Volume Up")
+        case .volumeDown: return String.appLocalized("Volume Down")
+        case .volumeMute: return String.appLocalized("Mute")
+        case .playPause: return String.appLocalized("Play / Pause")
         }
     }
 }
@@ -222,7 +259,7 @@ enum ButtonBinding: Codable, Equatable {
         switch self {
         case let .preset(action): return action.displayName
         case let .shortcut(chord): return chord.displayName
-        case .dictation: return String(localized: "Voice Input")
+        case .dictation: return String.appLocalized("Voice Input")
         }
     }
 
@@ -233,7 +270,11 @@ enum ButtonBinding: Codable, Equatable {
 }
 
 extension RemoteButton {
-    var defaultDoubleBinding: ButtonBinding { .preset(.disabled) }
+    var defaultDoubleBinding: ButtonBinding {
+        self == .ok
+            ? .shortcut(KeyChord(keyCode: 36, keyLabel: "Return", modifiers: .command))
+            : .preset(.disabled)
+    }
 
     func defaultBinding(for press: ButtonPressKind) -> ButtonBinding {
         switch press {
@@ -246,6 +287,7 @@ extension RemoteButton {
     var defaultHoldBinding: ButtonBinding {
         switch self {
         case .microphone: return .dictation
+        case .ok: return .shortcut(KeyChord(keyCode: 36, keyLabel: "Return", modifiers: .shift))
         case .left: return .preset(.homeKey)
         case .right: return .preset(.endKey)
         case .up: return .preset(.pageUp)
@@ -258,7 +300,7 @@ extension RemoteButton {
 
     var defaultBinding: ButtonBinding {
         switch self {
-        case .microphone: return .dictation
+        case .microphone: return .preset(.disabled)
         case .power: return .preset(.disabled)
         case .tv: return .preset(.playPause)
         case .up: return .preset(.arrowUp)
@@ -308,9 +350,9 @@ enum ButtonPressKind: String, CaseIterable, Identifiable {
     var id: Self { self }
     var title: String {
         switch self {
-        case .tap: return String(localized: "Short Press")
-        case .doubleTap: return String(localized: "Double Press")
-        case .hold: return String(localized: "Long Press")
+        case .tap: return String.appLocalized("Short Press")
+        case .doubleTap: return String.appLocalized("Double Press")
+        case .hold: return String.appLocalized("Long Press")
         }
     }
 }

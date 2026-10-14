@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct MappingActionPicker: View {
+    @ObservedObject private var localization = AppLocalization.shared
     @ObservedObject var model: ButtonMappingModel
     let button: RemoteButton
     let press: ButtonPressKind
@@ -14,13 +15,13 @@ struct MappingActionPicker: View {
     private var inherited: Bool { model.inheritsGlobal(button, press: press, profileID: profileID) }
     private var isCustomShortcut: Bool { if case .shortcut = binding { return true }; return false }
     private var actions: [ButtonAction] {
-        ButtonAction.allCases.filter { search.isEmpty || $0.displayName.localizedStandardContains(search) }
+        ButtonAction.allCases.filter { $0.matchesSearch(search) }
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(String(localized: "\(button.displayName) · \(press.title)")).font(AppTypography.emphasis)
-            TextField(String(localized: "Search actions"), text: $search)
+            Text(String.appLocalized("\(button.displayName) · \(press.title)")).font(AppTypography.emphasis)
+            TextField(String.appLocalized("Search actions"), text: $search)
                 .textFieldStyle(.roundedBorder).accessibilityIdentifier("actionSearch")
             if profileID != "global" {
                 Button {
@@ -31,7 +32,7 @@ struct MappingActionPicker: View {
                     HStack(spacing: 10) {
                         Image(systemName: "arrow.triangle.branch").frame(width: 20)
                         VStack(alignment: .leading, spacing: 3) {
-                            Text(String(localized: "Use Global Mapping"))
+                            Text(String.appLocalized("Use Global Mapping"))
                             Text(model.binding(for: button, press: press).displayName).font(AppTypography.caption).foregroundStyle(AppTheme.muted)
                         }
                         Spacer()
@@ -51,6 +52,9 @@ struct MappingActionPicker: View {
                                 HStack(spacing: 10) {
                                     MappingActionIcon(binding: .preset(action)).frame(width: 20)
                                     Text(action.displayName).frame(maxWidth: .infinity, alignment: .leading)
+                                    if let key = action.keyLabel, !action.displayName.localizedStandardContains(key) {
+                                        Text(verbatim: key).font(AppTypography.shortcut).foregroundStyle(AppTheme.muted)
+                                    }
                                     if !inherited && binding == .preset(action) { Image(systemName: "checkmark") }
                                 }.padding(8).contentShape(Rectangle())
                             }
@@ -58,7 +62,7 @@ struct MappingActionPicker: View {
                             .accessibilityIdentifier("action_\(action.rawValue)")
                             .id(action.rawValue)
                         }
-                        if actions.isEmpty { Text(String(localized: "No matching actions")).foregroundStyle(AppTheme.muted).padding() }
+                        if actions.isEmpty { Text(String.appLocalized("No matching actions")).foregroundStyle(AppTheme.muted).padding() }
                     }
                 }
                 .frame(height: 280).scrollIndicators(.visible)
@@ -73,7 +77,7 @@ struct MappingActionPicker: View {
             Button(action: record) {
                 HStack(spacing: 10) {
                     Image(systemName: "keyboard").frame(width: 20)
-                    Text(String(localized: "Custom Shortcut…"))
+                    Text(String.appLocalized("Custom Shortcut…"))
                     Spacer(minLength: 8)
                     if case .shortcut(let chord) = binding, !inherited {
                         Text(chord.displayName).font(AppTypography.shortcut).foregroundStyle(AppTheme.teal)
@@ -83,7 +87,7 @@ struct MappingActionPicker: View {
             }
             .buttonStyle(ActionChoiceStyle(selected: !inherited && isCustomShortcut))
             .accessibilityIdentifier("customShortcutAction")
-            if let errorMessage { Text(errorMessage).font(AppTypography.caption).foregroundStyle(AppTheme.coral) }
+            if let errorMessage { Text(errorMessage.appTranslated).font(AppTypography.caption).foregroundStyle(AppTheme.coral) }
         }
         .font(AppTypography.body)
         .padding(16).frame(width: 320).foregroundStyle(AppTheme.ink).tint(AppTheme.teal)
@@ -102,6 +106,7 @@ private struct ActionChoiceStyle: ButtonStyle {
 }
 
 struct MappingActionIcon: View {
+    @ObservedObject private var localization = AppLocalization.shared
     let binding: ButtonBinding
     var body: some View {
         switch binding {
@@ -116,8 +121,8 @@ struct MappingActionIcon: View {
 extension ButtonBinding {
     var compactName: String {
         switch self {
-        case .preset(.contextMenu): return String(localized: "Context Menu")
-        case .preset(.deleteBackward): return String(localized: "Delete")
+        case .preset(.contextMenu): return String.appLocalized("Context Menu")
+        case .preset(.deleteBackward): return String.appLocalized("Backspace")
         default: return displayName
         }
     }

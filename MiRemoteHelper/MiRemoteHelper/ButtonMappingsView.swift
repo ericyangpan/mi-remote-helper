@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ButtonMappingsView: View {
+    @ObservedObject private var localization = AppLocalization.shared
     @ObservedObject var bridge: BridgeModel
     @ObservedObject var model: ButtonMappingModel
     private struct RecordingTarget: Identifiable {
@@ -17,11 +18,11 @@ struct ButtonMappingsView: View {
     var body: some View {
         WorkspacePage {
             HStack {
-                Text(String(localized: "Button Mapping")).font(AppTypography.heading)
+                Text(String.appLocalized("Button Mapping")).font(AppTypography.heading)
                 Spacer()
-                Toggle(String(localized: "Enable Button Mapping"), isOn: Binding(get: { model.enabled }, set: model.setEnabled))
+                Toggle(String.appLocalized("Enable Button Mapping"), isOn: Binding(get: { model.enabled }, set: model.setEnabled))
                     .toggleStyle(.switch).controlSize(.small).font(AppTypography.body).disabled(busy)
-                    .help(String(localized: "Enable Button Mapping"))
+                    .help(String.appLocalized("Enable Button Mapping"))
             }
         } controls: {
             MappingProfilesView(model: model).disabled(busy)
@@ -29,13 +30,13 @@ struct ButtonMappingsView: View {
             VStack(spacing: 16) {
                 if !model.active {
                     HStack(spacing: 10) {
-                        Label(model.status, systemImage: "info.circle").font(AppTypography.body).foregroundStyle(AppTheme.muted)
+                        Label((model.status).appTranslated, systemImage: "info.circle").font(AppTypography.body).foregroundStyle(AppTheme.muted)
                         Spacer(minLength: 0)
                         if !bridge.inputMonitoringAllowed {
-                            Button(String(localized: "Allow Input Monitoring")) { bridge.requestInputMonitoring() }
+                            Button(String.appLocalized("Allow Input Monitoring")) { bridge.requestInputMonitoring() }
                         }
                         if !bridge.accessibilityAllowed {
-                            Button(String(localized: "Allow Accessibility")) { bridge.requestAccessibility() }
+                            Button(String.appLocalized("Allow Accessibility")) { bridge.requestAccessibility() }
                         }
                     }.controlSize(.small)
                 }
@@ -47,17 +48,17 @@ struct ButtonMappingsView: View {
             }
         } footer: {
             HStack {
-                Text(model.active ? String(localized: "Active mapping: \(model.activeProfileName)") : model.status)
+                Text(model.active ? String.appLocalized("Active mapping: \(model.activeProfileName)") : model.status)
                     .font(AppTypography.caption).foregroundStyle(AppTheme.muted)
                 Spacer()
                 Button { showingHelp.toggle() } label: { Image(systemName: "questionmark") }
-                    .buttonStyle(QuietIconButton()).help(String(localized: "Mapping Help"))
+                    .buttonStyle(QuietIconButton()).help(String.appLocalized("Mapping Help"))
                     .popover(isPresented: $showingHelp) {
                         VStack(alignment: .leading, spacing: 14) {
-                            Text(String(localized: "Mapping Help")).font(AppTypography.section)
-                            Text(String(localized: "Overrides apply only when this app is in front. Other actions inherit Global mappings."))
-                            Text(String(localized: "Hold for 0.5 seconds for a long press. When a double-press action is assigned, short presses wait 0.3 seconds for a second press. Voice input stays fixed."))
-                            Text(String(localized: "In the app switcher, use Left/Right to choose, OK or Home to confirm, and Back to cancel."))
+                            Text(String.appLocalized("Mapping Help")).font(AppTypography.section)
+                            Text(String.appLocalized("Overrides apply only when this app is in front. Other actions inherit Global mappings."))
+                            Text(String.appLocalized("Hold for 0.5 seconds for a long press. When a double-press action is assigned, short presses wait 0.3 seconds for a second press. Voice input stays fixed."))
+                            Text(String.appLocalized("In the app switcher, use Left/Right to choose, OK or Home to confirm, and Back to cancel."))
                         }.font(AppTypography.body).padding(24).frame(width: 340)
                     }
             }
@@ -82,7 +83,7 @@ struct ButtonMappingsView: View {
             let rowHeight = max(36, (geometry.size.height - 32) / CGFloat(RemoteButton.allCases.count))
             VStack(spacing: 0) {
                 HStack(spacing: 8) {
-                    Text(String(localized: "Button")).frame(width: nameWidth, alignment: .leading)
+                    Text(String.appLocalized("Button")).frame(width: nameWidth, alignment: .leading)
                     ForEach(ButtonPressKind.allCases) { Text($0.title).frame(width: cellWidth - 14, alignment: .leading).padding(.horizontal, 7) }
                 }.font(AppTypography.caption).foregroundStyle(AppTheme.muted).padding(.horizontal, 6).frame(height: 31, alignment: .top)
                 SectionRule()
@@ -95,14 +96,15 @@ struct ButtonMappingsView: View {
                                         .foregroundStyle(feedbackColor(for: button) ?? AppTheme.ink)
                                     Text(button.displayName).font(AppTypography.compactMedium).lineLimit(1)
                                 }.frame(width: nameWidth, alignment: .leading)
-                                if button == .microphone {
-                                    Label(String(localized: "Voice Input"), systemImage: "lock")
-                                        .font(AppTypography.body).foregroundStyle(AppTheme.muted).frame(maxWidth: .infinity, alignment: .leading)
-                                } else {
-                                    ForEach(ButtonPressKind.allCases) { press in
+                                ForEach(ButtonPressKind.allCases) { press in
+                                    if MappingDefinition.isConfigurable(button, press: press) {
                                         MappingActionCell(model: model, button: button, press: press, width: cellWidth) {
                                             recordingTarget = RecordingTarget(button: button, press: press, profileID: model.selectedProfileID)
                                         }
+                                    } else {
+                                        Label(button.defaultBinding(for: press).displayName, systemImage: "lock")
+                                            .font(AppTypography.compact).foregroundStyle(AppTheme.muted)
+                                            .frame(width: cellWidth, alignment: .leading)
                                     }
                                 }
                             }
@@ -124,6 +126,7 @@ struct ButtonMappingsView: View {
 }
 
 private struct MappingActionCell: View {
+    @ObservedObject private var localization = AppLocalization.shared
     @ObservedObject var model: ButtonMappingModel
     let button: RemoteButton
     let press: ButtonPressKind
@@ -157,8 +160,8 @@ private struct MappingActionCell: View {
         }
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
-        .help(inherited ? String(localized: "Inherit Global: \(binding.displayName)") : binding.displayName)
-        .accessibilityLabel(String(localized: "\(button.displayName) · \(press.title)"))
+        .help(inherited ? String.appLocalized("Inherit Global: \(binding.displayName)") : binding.displayName)
+        .accessibilityLabel(String.appLocalized("\(button.displayName) · \(press.title)"))
         .accessibilityValue(binding.displayName)
         .accessibilityIdentifier("mapping_\(button.rawValue)_\(press.rawValue)")
         .popover(isPresented: $showingActions) {

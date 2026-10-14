@@ -19,7 +19,7 @@ final class ButtonMappingModel: ObservableObject {
     @Published private(set) var shortPressed = Set<RemoteButton>()
     @Published private(set) var doublePressed = Set<RemoteButton>()
     @Published private(set) var lastButton: RemoteButton?
-    @Published private(set) var status = String(localized: "Button mapping is off.")
+    @Published private(set) var status = String.appStatus("Button mapping is off.")
     var onAvailabilityChange: (() -> Void)?
     var onVoiceMappingEdge: ((RemoteEventEdge) -> Void)?
     var canEdit: () -> Bool = { true }
@@ -31,6 +31,7 @@ final class ButtonMappingModel: ObservableObject {
     private let makeReader: () -> any RemoteButtonReading
     private let hasInputMonitoring: () -> Bool
     private let hasAccessibility: () -> Bool
+    private let sendBinding: (ButtonBinding) -> Bool
     private var edges = RemoteButtonEdges()
     private var holdTimers: [UInt16: Timer] = [:]
     private var tapTimers: [RemoteButton: Timer] = [:]
@@ -50,11 +51,13 @@ final class ButtonMappingModel: ObservableObject {
     init(defaults: UserDefaults = .standard,
          makeReader: @escaping () -> any RemoteButtonReading = { RemoteButtonReader() },
          hasInputMonitoring: @escaping () -> Bool = { IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted },
-         hasAccessibility: @escaping () -> Bool = { VoiceToggleShortcut.isTrusted }) {
+         hasAccessibility: @escaping () -> Bool = { VoiceToggleShortcut.isTrusted },
+         sendBinding: @escaping (ButtonBinding) -> Bool = KeyboardInjector.send) {
         self.defaults = defaults
         self.makeReader = makeReader
         self.hasInputMonitoring = hasInputMonitoring
         self.hasAccessibility = hasAccessibility
+        self.sendBinding = sendBinding
         enabled = defaults.bool(forKey: "buttonMappingEnabled")
         if let data = defaults.data(forKey: "applicationMappings.v1"),
            let stored = try? JSONDecoder().decode([ApplicationMapping].self, from: data) {
@@ -63,14 +66,28 @@ final class ButtonMappingModel: ObservableObject {
                 $0.definition.scope == .application && (try? $0.definition.validate()) != nil && identifiers.insert($0.id).inserted
             }
         } else { applicationProfiles = [ApplicationMapping(definition: .codex)] }
+        let migrateVoiceTap = !defaults.bool(forKey: "voiceTapMappings.v1")
         frontmostBundleIdentifier = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
         let decoded = Self.decode(defaults.data(forKey: "buttonMappings.v1"))
         let decodedHolds = Self.decode(defaults.data(forKey: "buttonHoldMappings.v1"))
         let decodedDoubles = Self.decode(defaults.data(forKey: "buttonDoubleMappings.v1"))
-        doubleBindings = Self.validated(decodedDoubles)
-        bindings = Self.validated(decoded)
-        holdBindings = Self.validated(decodedHolds)
-        if bindings != decoded || holdBindings != decodedHolds || doubleBindings != decodedDoubles { save() }
+        doubleBindings = Self.validated(decodedDoubles, press: .doubleTap)
+        bindings = Self.validated(decoded, press: .tap)
+        holdBindings = Self.validated(decodedHolds, press: .hold)
+        if migrateVoiceTap {
+            if !applicationProfiles.contains(where: { $0.id == MappingDefinition.grok.id }) {
+                applicationProfiles.append(ApplicationMapping(definition: .grok))
+            }
+            for definition in [MappingDefinition.codex, .grok] {
+                if let index = applicationProfiles.firstIndex(where: { $0.id == definition.id }) {
+                    if applicationProfiles[index].definition.shortPress["microphone"] == nil {
+                        applicationProfiles[index].definition.shortPress["microphone"] = definition.shortPress["microphone"]
+                    }
+                }
+            }
+        }
+        if migrateVoiceTap || bindings != decoded || holdBindings != decodedHolds || doubleBindings != decodedDoubles { save() }
+        defaults.set(true, forKey: "voiceTapMappings.v1")
         activationObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
         ) { [weak self] notification in
@@ -84,9 +101,9 @@ final class ButtonMappingModel: ObservableObject {
         data.flatMap { try? JSONDecoder().decode([String: ButtonBinding].self, from: $0) } ?? [:]
     }
 
-    private static func validated(_ values: [String: ButtonBinding]) -> [String: ButtonBinding] {
+    private static func validated(_ values: [String: ButtonBinding], press: ButtonPressKind) -> [String: ButtonBinding] {
         values.filter { key, binding in
-            guard let button = RemoteButton(rawValue: key), button != .microphone else { return false }
+            guard let button = RemoteButton(rawValue: key), MappingDefinition.isConfigurable(button, press: press) else { return false }
             switch binding {
             case .shortcut(let chord): return chord.isValid
             case .dictation: return false
@@ -96,10 +113,10 @@ final class ButtonMappingModel: ObservableObject {
     }
 
     func binding(for button: RemoteButton, press: ButtonPressKind = .tap, profileID: String = "global") -> ButtonBinding {
-        if profileID != "global", button != .microphone,
+        if profileID != "global", MappingDefinition.isConfigurable(button, press: press),
            let entry = applicationProfiles.first(where: { $0.id == profileID }),
            let override = entry.definition.override(for: button, press: press) { return override }
-        guard button != .microphone else { return .dictation }
+        guard MappingDefinition.isConfigurable(button, press: press) else { return button.defaultBinding(for: press) }
         switch press {
         case .tap: return bindings[button.rawValue] ?? button.defaultBinding
         case .hold: return holdBindings[button.rawValue] ?? button.defaultHoldBinding
@@ -109,7 +126,7 @@ final class ButtonMappingModel: ObservableObject {
 
     @discardableResult
     func setBinding(_ binding: ButtonBinding, for button: RemoteButton, press: ButtonPressKind = .tap, profileID: String = "global") -> Bool {
-        guard button != .microphone, canEdit(), pressed.isEmpty else { return false }
+        guard MappingDefinition.isConfigurable(button, press: press), canEdit(), pressed.isEmpty else { return false }
         if case .dictation = binding { return false }
         if case .shortcut(let chord) = binding, !chord.isValid { return false }
         cancelPendingActions()
@@ -159,13 +176,13 @@ final class ButtonMappingModel: ObservableObject {
     var globalDefinition: MappingDefinition {
         let buttons = RemoteButton.allCases.filter { $0 != .microphone }
         return MappingDefinition(name: "Global", scope: .global,
-            shortPress: Dictionary(uniqueKeysWithValues: buttons.map { ($0.rawValue, binding(for: $0)) }),
+            shortPress: Dictionary(uniqueKeysWithValues: RemoteButton.allCases.map { ($0.rawValue, binding(for: $0)) }),
             longPress: Dictionary(uniqueKeysWithValues: buttons.map { ($0.rawValue, binding(for: $0, press: .hold)) }),
-            doublePress: Dictionary(uniqueKeysWithValues: buttons.map { ($0.rawValue, binding(for: $0, press: .doubleTap)) }))
+            doublePress: Dictionary(uniqueKeysWithValues: RemoteButton.allCases.map { ($0.rawValue, binding(for: $0, press: .doubleTap)) }))
     }
     var activeProfileName: String {
         applicationProfiles.first { $0.enabled && $0.definition.bundleIdentifier == frontmostBundleIdentifier }?.definition.name
-            ?? String(localized: "Global")
+            ?? String.appStatus("Global")
     }
     var selectedApplication: ApplicationMapping? { applicationProfiles.first { $0.id == selectedProfileID } }
 
@@ -178,7 +195,7 @@ final class ButtonMappingModel: ObservableObject {
         profileID != "global" && applicationProfiles.first(where: { $0.id == profileID })?.definition.override(for: button, press: press) == nil
     }
     func inheritGlobal(_ button: RemoteButton, press: ButtonPressKind, profileID: String) {
-        guard button != .microphone, canEdit(), pressed.isEmpty,
+        guard MappingDefinition.isConfigurable(button, press: press), canEdit(), pressed.isEmpty,
               let index = applicationProfiles.firstIndex(where: { $0.id == profileID }) else { return }
         cancelPendingActions()
         applicationProfiles[index].definition.set(nil, for: button, press: press)
@@ -192,7 +209,8 @@ final class ButtonMappingModel: ObservableObject {
     }
     func addApplication(name: String, bundleIdentifier: String) throws {
         guard canEdit(), pressed.isEmpty else { throw MappingDefinitionError.busy }
-        let definition = MappingDefinition(name: name, scope: .application, bundleIdentifier: bundleIdentifier, shortPress: [:], longPress: [:])
+        let definition = bundleIdentifier == MappingDefinition.grok.bundleIdentifier ? MappingDefinition.grok :
+            MappingDefinition(name: name, scope: .application, bundleIdentifier: bundleIdentifier, shortPress: [:], longPress: [:])
         try definition.validate()
         if !applicationProfiles.contains(where: { $0.id == definition.id }) {
             applicationProfiles.append(ApplicationMapping(definition: definition))
@@ -254,13 +272,13 @@ final class ButtonMappingModel: ObservableObject {
     func refresh(connected: Bool) {
         self.connected = connected
         guard pendingRestoreReader == nil else { return }
-        guard enabled else { setUnavailableStatus(String(localized: "Button mapping is off.")); return }
-        guard connected else { setUnavailableStatus(String(localized: "Connect the remote to use button mappings.")); return }
+        guard enabled else { setUnavailableStatus(String.appStatus("Button mapping is off.")); return }
+        guard connected else { setUnavailableStatus(String.appStatus("Connect the remote to use button mappings.")); return }
         guard hasInputMonitoring() else {
-            setUnavailableStatus(String(localized: "Allow Input Monitoring to enable button mappings.")); return
+            setUnavailableStatus(String.appStatus("Allow Input Monitoring to enable button mappings.")); return
         }
         guard hasAccessibility() else {
-            setUnavailableStatus(String(localized: "Allow Accessibility to send shortcuts.")); return
+            setUnavailableStatus(String.appStatus("Allow Accessibility to send shortcuts.")); return
         }
         guard reader == nil else { return }
         let reader = makeReader()
@@ -269,7 +287,7 @@ final class ButtonMappingModel: ObservableObject {
             guard let self else { return }
             self.clearPressed()
             self.active = active
-            self.status = error ?? (active ? String(localized: "Button mappings are ready.") : String(localized: "Waiting for the remote’s buttons…"))
+            self.status = error ?? (active ? String.appStatus("Button mappings are ready.") : String.appStatus("Waiting for the remote’s buttons…"))
             if !active, self.reader?.restorationPending == true {
                 self.stop()
                 self.onAvailabilityChange?()
@@ -294,7 +312,7 @@ final class ButtonMappingModel: ObservableObject {
             if !reader.stop() {
                 // Keep the mapper and its original values alive until restoration succeeds.
                 pendingRestoreReader = reader
-                let error = String(localized: "Unable to restore the remote’s buttons. Retrying; reconnect the remote if this continues.")
+                let error = String.appStatus("Unable to restore the remote’s buttons. Retrying; reconnect the remote if this continues.")
                 restorationError = error
                 status = error
                 if restorationTimer == nil {
@@ -346,9 +364,29 @@ final class ButtonMappingModel: ObservableObject {
     private func clearPressed() {
         cancelPendingActions()
         _ = appSwitcher.handle(pressed: [], down: [])
-        if pressed.contains(.microphone), binding(for: .microphone) == .dictation { onVoiceMappingEdge?(.up) }
+        if pressed.contains(.microphone) { onVoiceMappingEdge?(.up) }
         edges.reset()
         pressed = []
+    }
+
+    func showVoiceHoldFeedback() {
+        showFeedback(.hold, for: .microphone, released: false)
+    }
+
+    func finishVoiceFeedback() {
+        if longPressed.contains(.microphone) { showFeedback(.hold, for: .microphone) }
+    }
+
+    func sendVoiceTap(_ binding: ButtonBinding, originatingApp: String?, press: ButtonPressKind = .tap) {
+        guard enabled, !recording, hasAccessibility(),
+              NSWorkspace.shared.frontmostApplication?.bundleIdentifier == originatingApp else { return }
+        showFeedback(press, for: .microphone)
+        send(binding)
+    }
+
+    func voiceTapBinding(press: ButtonPressKind = .tap) -> ButtonBinding {
+        synchronizeForeground()
+        return enabled && !recording ? runtimeBinding(for: .microphone, press: press) : .preset(.disabled)
     }
 
     private func send(_ binding: ButtonBinding) {
@@ -360,11 +398,11 @@ final class ButtonMappingModel: ObservableObject {
                     self?.cancelPendingActions()
                 }
             } else {
-                status = String(localized: "Unable to send the shortcut. Check Accessibility permission.")
+                status = String.appStatus("Unable to send the shortcut. Check Accessibility permission.")
             }
             return
         }
-        if !KeyboardInjector.send(binding) { status = String(localized: "Unable to send the shortcut. Check Accessibility permission.") }
+        if !sendBinding(binding) { status = String.appStatus("Unable to send the shortcut. Check Accessibility permission.") }
     }
 
     private func scheduleTap(for button: RemoteButton) {
@@ -436,7 +474,7 @@ final class ButtonMappingModel: ObservableObject {
         if !appSwitcher.isActive { switcherTimeout?.invalidate(); switcherTimeout = nil }
         for usage in changes.up {
             holdTimers.removeValue(forKey: usage)?.invalidate()
-            if let button = RemoteButton.usageMap[usage], !recording,
+            if let button = RemoteButton.usageMap[usage], button != .microphone, !recording,
                let kind = gestureFeedback.release(button, at: ProcessInfo.processInfo.systemUptime) {
                 showFeedback(kind, for: button)
             }
@@ -446,17 +484,18 @@ final class ButtonMappingModel: ObservableObject {
                 send(action)
             }
             if let button = RemoteButton.usageMap[usage] { scheduleTap(for: button) }
-            if usage == RemoteButton.microphone.hidUsage, binding(for: .microphone) == .dictation { onVoiceMappingEdge?(.up) }
+            if usage == RemoteButton.microphone.hidUsage { onVoiceMappingEdge?(.up) }
         }
         guard !recording else { return }
         for usage in changes.down.sorted() {
             guard let button = RemoteButton.usageMap[usage] else { continue }
             lastButton = button
             if consumed.contains(button) { continue }
+            if button == .microphone { continue }
             clearFeedback(for: button)
             gestureFeedback.begin(button, at: ProcessInfo.processInfo.systemUptime)
             let binding = runtimeBinding(for: button, press: .tap)
-            if binding == .dictation { onVoiceMappingEdge?(.down); continue }
+            if button == .microphone { onVoiceMappingEdge?(.down); continue }
             if let generation = buttonPresses.begin(button, tap: binding, hold: runtimeBinding(for: button, press: .hold), doubleTap: runtimeBinding(for: button, press: .doubleTap), at: ProcessInfo.processInfo.systemUptime) {
                 tapTimers.removeValue(forKey: button)?.invalidate()
                 let timer = Timer(timeInterval: ButtonPressTracker.holdDuration, repeats: false) { [weak self] _ in

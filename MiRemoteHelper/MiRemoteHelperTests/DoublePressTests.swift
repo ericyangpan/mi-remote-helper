@@ -7,6 +7,22 @@ struct DoublePressTests {
     private let hold = ButtonBinding.shortcut(KeyChord(keyCode: 36, keyLabel: "Return", modifiers: .shift))
     private let double = ButtonBinding.shortcut(KeyChord(keyCode: 36, keyLabel: "Return", modifiers: .command))
 
+    @Test @MainActor func v3MigrationKeepsVoiceDoubleDisabledAndPreservesShort() throws {
+        let suite = "VoiceMigrationTests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let model = ButtonMappingModel(defaults: defaults)
+        var object = try #require(JSONSerialization.jsonObject(with: MappingDefinitionCodec.encode(model.globalDefinition)) as? [String: Any])
+        object["version"] = 3
+        var doubles = try #require(object["doublePress"] as? [String: Any])
+        doubles.removeValue(forKey: "microphone")
+        object["doublePress"] = doubles
+        let migrated = try MappingDefinitionCodec.decode(JSONSerialization.data(withJSONObject: object))
+        #expect(migrated.version == 4)
+        #expect(migrated.doublePress["microphone"] == .preset(.disabled))
+        #expect(migrated.shortPress == model.globalDefinition.shortPress)
+    }
+
     @Test func doublePressNeverSendsAnEarlyReturn() {
         var tracker = ButtonPressTracker()
         _ = tracker.begin(.ok, tap: tap, hold: hold, doubleTap: double, at: 0)
@@ -98,7 +114,7 @@ struct DoublePressTests {
         #expect(restored.binding(for: .ok) == tap)
         for profile in ["global", id] {
             let definition = try restored.exportDefinition(profileID: profile)
-            #expect(definition.version == 2)
+            #expect(definition.version == 4)
             #expect(try MappingDefinitionCodec.decode(MappingDefinitionCodec.encode(definition)) == definition)
         }
         restored.frontmostApplicationChanged(to: "com.openai.codex")
@@ -113,10 +129,13 @@ struct DoublePressTests {
         defer { defaults.removePersistentDomain(forName: suite) }
         let model = ButtonMappingModel(defaults: defaults)
         var object = try #require(JSONSerialization.jsonObject(with: MappingDefinitionCodec.encode(model.globalDefinition)) as? [String: Any])
+        var oldShort = try #require(object["shortPress"] as? [String: Any])
+        oldShort.removeValue(forKey: "microphone")
+        object["shortPress"] = oldShort
         object["version"] = 1
         object.removeValue(forKey: "doublePress")
         let migrated = try MappingDefinitionCodec.decode(JSONSerialization.data(withJSONObject: object))
-        #expect(migrated.version == 2 && migrated.doublePress.count == 12)
+        #expect(migrated.version == 4 && migrated.doublePress.count == 13)
         #expect(migrated.doublePress.values.allSatisfy { $0.isDisabled })
         #expect(migrated.shortPress == model.globalDefinition.shortPress)
         let oldApp: [String: Any] = ["format": "mi-remote-helper.mapping", "version": 1,
@@ -128,7 +147,7 @@ struct DoublePressTests {
         object["version"] = 2
         #expect(throws: MappingDefinitionError.self) { try MappingDefinitionCodec.decode(JSONSerialization.data(withJSONObject: object)) }
         var invalid = model.globalDefinition
-        invalid.doublePress["microphone"] = double
+        invalid.longPress["microphone"] = double
         #expect(throws: MappingDefinitionError.self) { try MappingDefinitionCodec.encode(invalid) }
         invalid = model.globalDefinition
         invalid.doublePress.removeValue(forKey: "ok")

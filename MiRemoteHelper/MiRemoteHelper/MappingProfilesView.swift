@@ -3,6 +3,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct MappingProfilesView: View {
+    @ObservedObject private var localization = AppLocalization.shared
     @ObservedObject var model: ButtonMappingModel
     @State private var showingImport = false
     @State private var showingExport = false
@@ -16,38 +17,38 @@ struct MappingProfilesView: View {
     var body: some View {
         HStack(spacing: 12) {
             HStack(spacing: 10) {
-                Text(String(localized: "Edit Mappings")).foregroundStyle(AppTheme.muted)
-                Picker(String(localized: "Edit Mappings"), selection: Binding(get: { model.selectedProfileID }, set: model.selectProfile)) {
-                    Text(String(localized: "Global")).tag("global")
+                Text(String.appLocalized("Edit Mappings")).foregroundStyle(AppTheme.muted)
+                Picker(String.appLocalized("Edit Mappings"), selection: Binding(get: { model.selectedProfileID }, set: model.selectProfile)) {
+                    Text(String.appLocalized("Global")).tag("global")
                     ForEach(model.applicationProfiles) { entry in Text(entry.definition.name).tag(entry.id) }
                 }.labelsHidden().frame(width: 140, alignment: .leading)
             }.fixedSize()
             if let application = model.selectedApplication {
-                Toggle(String(localized: "App Mapping"), isOn: Binding(
+                Toggle(String.appLocalized("App Mapping"), isOn: Binding(
                     get: { application.enabled }, set: { model.setApplicationEnabled($0, profileID: application.id) }
                 )).toggleStyle(.switch).controlSize(.small)
                     .help(application.definition.bundleIdentifier ?? "")
                     .fixedSize()
             }
             Spacer(minLength: 0)
-            Button(action: addApplication) { Label(String(localized: "Add App…"), systemImage: "plus") }
+            Button(action: addApplication) { Label(String.appLocalized("Add App…"), systemImage: "plus") }
                 .accessibilityIdentifier("addMappingApp")
-            Button(String(localized: "Import…")) { showingImport = true }
+            Button(String.appLocalized("Import…")) { showingImport = true }
                 .accessibilityIdentifier("importMapping")
-            Button(String(localized: "Export…"), action: exportDefinition)
+            Button(String.appLocalized("Export…"), action: exportDefinition)
                 .accessibilityIdentifier("exportMapping")
             Menu {
-                Button(model.selectedProfileID == "global" ? String(localized: "Restore Defaults") : String(localized: "Inherit All Global Mappings")) { resetProfileID = model.selectedProfileID }
+                Button(model.selectedProfileID == "global" ? String.appLocalized("Restore Defaults") : String.appLocalized("Inherit All Global Mappings")) { resetProfileID = model.selectedProfileID }
                 if model.selectedApplication != nil {
                     Divider()
-                    Button(String(localized: "Remove App Mapping…"), role: .destructive) { deletingApplication = true }
+                    Button(String.appLocalized("Remove App Mapping…"), role: .destructive) { deletingApplication = true }
                 }
             } label: {
                 Image(systemName: "ellipsis").frame(width: 30, height: 30)
                     .background(AppTheme.paper, in: Circle())
             }
             .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
-            .accessibilityLabel(String(localized: "Mapping Actions"))
+            .accessibilityLabel(String.appLocalized("Mapping Actions"))
         }
         .font(AppTypography.compact)
         .controlSize(.small)
@@ -66,23 +67,23 @@ struct MappingProfilesView: View {
                 catch { errorMessage = error.localizedDescription; pendingImport = nil }
             })
         }
-        .alert(String(localized: "Mapping File"), isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
-            Button(String(localized: "OK")) { errorMessage = nil }
-        } message: { Text(errorMessage ?? "") }
-        .confirmationDialog(String(localized: "Reset these mappings?"), isPresented: Binding(get: { resetProfileID != nil }, set: { if !$0 { resetProfileID = nil } }), titleVisibility: .visible) {
-            Button(String(localized: "Reset"), role: .destructive) {
+        .alert(String.appLocalized("Mapping File"), isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            Button(String.appLocalized("OK")) { errorMessage = nil }
+        } message: { Text((errorMessage ?? "").appTranslated) }
+        .confirmationDialog(String.appLocalized("Reset these mappings?"), isPresented: Binding(get: { resetProfileID != nil }, set: { if !$0 { resetProfileID = nil } }), titleVisibility: .visible) {
+            Button(String.appLocalized("Reset"), role: .destructive) {
                 if let resetProfileID { model.reset(profileID: resetProfileID) }
                 resetProfileID = nil
             }
-            Button(String(localized: "Cancel"), role: .cancel) { resetProfileID = nil }
+            Button(String.appLocalized("Cancel"), role: .cancel) { resetProfileID = nil }
         } message: {
             Text(resetProfileID == "global"
-                 ? String(localized: "This replaces your Global mappings with defaults. App mappings stay unchanged.")
-                 : String(localized: "This removes this app’s overrides. All actions will inherit Global mappings."))
+                 ? String.appLocalized("This replaces your Global mappings with defaults. App mappings stay unchanged.")
+                 : String.appLocalized("This removes this app’s overrides. All actions will inherit Global mappings."))
         }
-        .confirmationDialog(String(localized: "Remove this app mapping?"), isPresented: $deletingApplication) {
-            Button(String(localized: "Remove"), role: .destructive) { model.removeApplication(model.selectedProfileID) }
-        } message: { Text(String(localized: "This app will use Global mappings. Your Global mappings will be kept.")) }
+        .confirmationDialog(String.appLocalized("Remove this app mapping?"), isPresented: $deletingApplication) {
+            Button(String.appLocalized("Remove"), role: .destructive) { model.removeApplication(model.selectedProfileID) }
+        } message: { Text(String.appLocalized("This app will use Global mappings. Your Global mappings will be kept.")) }
     }
 
     private func report(_ error: Error) {
@@ -119,21 +120,22 @@ struct MappingProfilesView: View {
 }
 
 private struct MappingImportPreview: View {
+    @ObservedObject private var localization = AppLocalization.shared
     let definition: MappingDefinition
     let onCancel: () -> Void
     let onApply: () -> Void
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(String(localized: "Import Mapping Definition")).font(AppTypography.section)
-            Text(definition.scope == .global ? String(localized: "Global") : definition.name).font(AppTypography.emphasis)
+            Text(String.appLocalized("Import Mapping Definition")).font(AppTypography.section)
+            Text(definition.scope == .global ? String.appLocalized("Global") : definition.name).font(AppTypography.emphasis)
             if let identifier = definition.bundleIdentifier { Text(identifier).font(AppTypography.caption).foregroundStyle(.secondary) }
             Text(definition.scope == .global
-                ? String(localized: "This replaces all Global short-press, double-press and long-press mappings. App mappings stay unchanged.")
-                : String(localized: "This replaces the overrides for this app. Unlisted actions inherit Global mappings."))
+                ? String.appLocalized("This replaces all Global short-press, double-press and long-press mappings. App mappings stay unchanged.")
+                : String.appLocalized("This replaces the overrides for this app. Unlisted actions inherit Global mappings."))
                 .font(AppTypography.body).fixedSize(horizontal: false, vertical: true)
             ScrollView {
                 VStack(alignment: .leading, spacing: 8) {
-                    ForEach(RemoteButton.allCases.filter { $0 != .microphone }) { button in
+                    ForEach(RemoteButton.allCases) { button in
                         ForEach(ButtonPressKind.allCases) { press in
                             if let binding = definition.override(for: button, press: press) {
                                 HStack {
@@ -145,15 +147,15 @@ private struct MappingImportPreview: View {
                         }
                     }
                     if definition.shortPress.isEmpty && definition.longPress.isEmpty && definition.doublePress.isEmpty {
-                        Text(String(localized: "All actions inherit Global mappings."))
+                        Text(String.appLocalized("All actions inherit Global mappings."))
                     }
                 }
             }.frame(maxHeight: 320)
             HStack {
                 Spacer()
-                Button(String(localized: "Cancel"), action: onCancel)
+                Button(String.appLocalized("Cancel"), action: onCancel)
                     .keyboardShortcut(.cancelAction)
-                Button(String(localized: "Apply Import"), action: onApply).buttonStyle(.borderedProminent)
+                Button(String.appLocalized("Apply Import"), action: onApply).buttonStyle(.borderedProminent)
                     .keyboardShortcut(.defaultAction)
             }
         }.font(AppTypography.body).padding(24).frame(width: 570)

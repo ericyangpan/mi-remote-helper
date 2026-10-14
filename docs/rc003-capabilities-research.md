@@ -19,7 +19,7 @@ These are model and protocol identifiers, not device serial numbers or Bluetooth
 
 ## Supported and unconfirmed capabilities
 
-The microphone, 13 physical buttons and battery level have application or hardware evidence. The microphone requires holding Voice. Battery level uses `180F / 2A19`; `2BED` was also readable and notified, but charging transitions were not verified.
+The microphone, 13 physical buttons and battery level have application or hardware evidence. The microphone requires holding Voice. Battery level uses `180F / 2A19`; `2BED` was also readable and notified. The app now reads its charging state and shows a lightning bolt in the battery icon while charging; physical charging transitions still need verification.
 
 No verified accelerometer, gyroscope, magnetometer, ambient-light, proximity, motion-gesture or air-mouse interface is available. Missing descriptors or notifications do not prove the hardware is absent: a sensor could be internal to firmware or require an unknown activation protocol.
 
